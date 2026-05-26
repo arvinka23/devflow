@@ -38,15 +38,15 @@
     </nav>
 
     <div class="p-4 border-t border-border">
-        <div class="flex items-center gap-3 px-3 py-2">
-            <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
+        <a href="{{ route('settings') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-muted transition-colors group">
+            <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary shrink-0">
                 {{ auth()->user()->initials }}
             </div>
             <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-foreground truncate">{{ auth()->user()->name }}</p>
+                <p class="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">{{ auth()->user()->name }}</p>
                 <p class="text-xs text-muted-foreground truncate">{{ auth()->user()->email }}</p>
             </div>
-        </div>
+        </a>
     </div>
 </aside>
 
