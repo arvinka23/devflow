@@ -189,7 +189,7 @@
             </button>
         </div>
         <form id="edit-project-form" action="" method="POST" enctype="multipart/form-data" class="p-6 space-y-5">
-            @csrf @method('PUT')
+            @csrf
             <input type="hidden" name="color" id="edit-project-color">
             <input type="hidden" name="remove_picture" id="edit-remove-picture" value="0">
 
@@ -307,7 +307,7 @@ function openEditProjectModal(id, name, desc, color, hasPicture) {
     editProjectHasPicture = hasPicture;
     editCurrentColor = color;
 
-    document.getElementById('edit-project-form').action = `/projects/${id}`;
+    document.getElementById('edit-project-form').action = `/projects/${id}/update`;
     document.getElementById('edit-project-name').value = name;
     document.getElementById('edit-project-desc').value = desc;
     document.getElementById('edit-project-color').value = color;

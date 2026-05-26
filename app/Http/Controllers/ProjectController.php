@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class ProjectController extends Controller
@@ -64,6 +65,12 @@ class ProjectController extends Controller
     public function update(Request $request, Project $project)
     {
         abort_if($project->user_id !== $request->user()->id, 403);
+
+        Log::info('ProjectController::update called', [
+            'project_id' => $project->id,
+            'hasFile'    => $request->hasFile('picture'),
+            'allInput'   => array_keys($request->all()),
+        ]);
 
         $validated = $request->validate([
             'name'           => 'required|string|max:255',

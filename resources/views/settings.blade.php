@@ -25,47 +25,44 @@
     <div class="bg-card rounded-2xl border border-border">
         <div class="p-6 border-b border-border">
             <h2 class="text-lg font-semibold text-foreground">Profile Photo</h2>
-            <p class="text-sm text-muted-foreground mt-1">Click your photo to upload a new one. Max 2 MB.</p>
+            <p class="text-sm text-muted-foreground mt-1">Upload a photo. JPG, PNG, WebP or GIF, max 4 MB.</p>
         </div>
-        <div class="p-6 flex items-center gap-6">
-            {{-- Single form wraps the label — file input is INSIDE the form so it submits directly --}}
-            <form action="{{ route('settings.avatar') }}" method="POST" enctype="multipart/form-data">
-                @csrf
-                <label for="avatar-input" class="relative cursor-pointer group/av shrink-0 block">
+        <div class="p-6">
+            <div class="flex items-center gap-6">
+                {{-- Avatar preview --}}
+                <div class="shrink-0">
                     @if(auth()->user()->profile_picture)
                     <img src="{{ asset('storage/' . auth()->user()->profile_picture) }}"
                          alt="Profile photo"
-                         class="w-20 h-20 rounded-full object-cover ring-2 ring-border group-hover/av:ring-primary transition-all">
+                         class="w-20 h-20 rounded-full object-cover ring-2 ring-border">
                     @else
-                    <div class="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center text-2xl font-medium text-primary ring-2 ring-border group-hover/av:ring-primary transition-all">
+                    <div class="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center text-2xl font-medium text-primary ring-2 ring-border">
                         {{ auth()->user()->initials }}
                     </div>
                     @endif
-                    <div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover/av:opacity-100 transition-opacity">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        </svg>
-                    </div>
-                    {{-- File input INSIDE the form — submits automatically on change --}}
-                    <input type="file" name="avatar" id="avatar-input" accept="image/*" class="hidden"
-                           onchange="this.form.submit()">
-                </label>
-            </form>
+                </div>
 
-            <div>
-                <p class="text-sm font-medium text-foreground">{{ auth()->user()->name }}</p>
-                <p class="text-xs text-muted-foreground mt-0.5">JPG, PNG, WebP or GIF</p>
-                @if(auth()->user()->profile_picture)
-                <form action="{{ route('settings.avatar.delete') }}" method="POST" class="mt-3">
-                    @csrf @method('DELETE')
-                    <button type="submit"
-                            onclick="return confirm('Remove your profile photo?')"
-                            class="text-xs text-destructive hover:underline">
-                        Remove photo
-                    </button>
-                </form>
-                @endif
+                <div class="space-y-3">
+                    {{-- Upload form with visible button --}}
+                    <form id="avatar-upload-form" action="{{ route('settings.avatar') }}" method="POST" enctype="multipart/form-data">
+                        @csrf
+                        <input type="file" name="avatar" id="avatar-file-input" accept="image/*" class="hidden">
+                        <button type="button" onclick="document.getElementById('avatar-file-input').click()"
+                                class="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
+                            {{ auth()->user()->profile_picture ? 'Change Photo' : 'Upload Photo' }}
+                        </button>
+                    </form>
+
+                    @if(auth()->user()->profile_picture)
+                    <form action="{{ route('settings.avatar.delete') }}" method="POST">
+                        @csrf @method('DELETE')
+                        <button type="submit" onclick="return confirm('Remove your profile photo?')"
+                                class="text-sm text-destructive hover:underline">
+                            Remove photo
+                        </button>
+                    </form>
+                    @endif
+                </div>
             </div>
         </div>
     </div>
@@ -153,5 +150,15 @@
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script>
+document.getElementById('avatar-file-input').addEventListener('change', function () {
+    if (this.files && this.files.length > 0) {
+        document.getElementById('avatar-upload-form').submit();
+    }
+});
+</script>
+@endpush
 
 @endsection

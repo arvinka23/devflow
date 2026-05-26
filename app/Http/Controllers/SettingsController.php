@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class SettingsController extends Controller
@@ -25,8 +26,14 @@ class SettingsController extends Controller
 
     public function updateAvatar(Request $request)
     {
+        Log::info('updateAvatar called', [
+            'hasFile'    => $request->hasFile('avatar'),
+            'allFiles'   => array_keys($request->allFiles()),
+            'allInput'   => array_keys($request->all()),
+        ]);
+
         $request->validate([
-            'avatar' => 'required|image|mimes:jpg,jpeg,png,webp,gif|max:2048',
+            'avatar' => 'required|image|mimes:jpg,jpeg,png,webp,gif|max:4096',
         ]);
 
         $user = $request->user();
@@ -36,7 +43,13 @@ class SettingsController extends Controller
         }
 
         $path = $request->file('avatar')->store('avatars', 'public');
-        $user->update(['profile_picture' => $path]);
+
+        Log::info('Avatar stored', ['path' => $path]);
+
+        $user->profile_picture = $path;
+        $user->save();
+
+        Log::info('User saved', ['profile_picture' => $user->profile_picture]);
 
         return redirect()->route('settings')->with('success', 'Profile picture updated.');
     }
