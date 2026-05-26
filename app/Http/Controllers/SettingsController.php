@@ -19,7 +19,9 @@ class SettingsController extends Controller
             'name' => 'required|string|max:255',
         ]);
 
-        $request->user()->update($validated);
+        // Explicitly pass only the name to prevent accidental mass-assignment
+        // of other fillable fields (e.g. email) if validation rules expand later.
+        $request->user()->update(['name' => $validated['name']]);
 
         return redirect()->route('settings')->with('success', 'Settings saved.');
     }
@@ -43,6 +45,7 @@ class SettingsController extends Controller
         }
 
         $path = $request->file('avatar')->store('avatars', 'public');
+        abort_if($path === false, 500, 'Failed to store avatar. Please try again.');
 
         Log::info('Avatar stored', ['path' => $path]);
 
@@ -74,8 +77,9 @@ class SettingsController extends Controller
             Storage::disk('public')->delete($user->profile_picture);
         }
 
-        auth()->logout();
+        // Delete first — if this fails, the user stays logged in and can retry.
         $user->delete();
+        auth()->logout();
         return redirect('/');
     }
 }

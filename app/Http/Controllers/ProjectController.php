@@ -41,7 +41,9 @@ class ProjectController extends Controller
         ];
 
         if ($request->hasFile('picture')) {
-            $data['picture'] = $request->file('picture')->store('projects', 'public');
+            $path = $request->file('picture')->store('projects', 'public');
+            abort_if($path === false, 500, 'Failed to store picture. Please try again.');
+            $data['picture'] = $path;
         }
 
         $request->user()->projects()->create($data);
@@ -91,7 +93,9 @@ class ProjectController extends Controller
             if ($project->picture) {
                 Storage::disk('public')->delete($project->picture);
             }
-            $data['picture'] = $request->file('picture')->store('projects', 'public');
+            $path = $request->file('picture')->store('projects', 'public');
+            abort_if($path === false, 500, 'Failed to store picture. Please try again.');
+            $data['picture'] = $path;
         } elseif ($request->boolean('remove_picture')) {
             if ($project->picture) {
                 Storage::disk('public')->delete($project->picture);
