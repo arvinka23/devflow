@@ -43,9 +43,9 @@ class ProjectController extends Controller
         abort_if($project->user_id !== $request->user()->id, 403);
 
         $tasks = [
-            'todo'        => $project->tasks()->where('status', 'todo')->orderBy('order')->get(),
-            'in_progress' => $project->tasks()->where('status', 'in_progress')->orderBy('order')->get(),
-            'done'        => $project->tasks()->where('status', 'done')->orderBy('order')->get(),
+            'todo'        => $project->tasks()->where('status', 'todo')->orderBy('order')->with('checklists')->get(),
+            'in_progress' => $project->tasks()->where('status', 'in_progress')->orderBy('order')->with('checklists')->get(),
+            'done'        => $project->tasks()->where('status', 'done')->orderBy('order')->with('checklists')->get(),
         ];
 
         return view('projects.show', compact('project', 'tasks'));
