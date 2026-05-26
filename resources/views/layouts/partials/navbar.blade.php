@@ -34,8 +34,12 @@
 
             <div class="relative">
                 <button id="user-menu-button" onclick="toggleUserMenu()" class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-muted transition-colors">
-                    <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
+                    <div class="w-8 h-8 rounded-full overflow-hidden bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
+                        @if(auth()->user()->profile_picture)
+                        <img src="{{ asset('storage/' . auth()->user()->profile_picture) }}" alt="Avatar" class="w-full h-full object-cover">
+                        @else
                         {{ auth()->user()->initials }}
+                        @endif
                     </div>
                     <svg class="w-4 h-4 text-muted-foreground hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>

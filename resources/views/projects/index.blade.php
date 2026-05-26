@@ -17,17 +17,41 @@
         </button>
     </div>
 
+    @if(session('success'))
+    <div class="px-4 py-3 bg-green-500/10 text-green-500 rounded-xl text-sm font-medium">
+        {{ session('success') }}
+    </div>
+    @endif
+
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         @forelse($projects as $project)
         <div class="bg-card rounded-2xl border border-border p-6 hover:border-primary/50 transition-colors group">
             <div class="flex items-start justify-between mb-4">
-                <a href="{{ route('projects.show', $project->id) }}" class="w-12 h-12 rounded-xl flex items-center justify-center text-white text-lg font-medium" style="background-color: {{ $project->color }}">
+                <!-- Project avatar (picture or color+initials) -->
+                <a href="{{ route('projects.show', $project->id) }}"
+                   class="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center text-white text-lg font-medium shrink-0"
+                   style="{{ !$project->picture ? 'background-color: ' . $project->color : '' }}">
+                    @if($project->picture)
+                    <img src="{{ asset('storage/' . $project->picture) }}"
+                         alt="{{ $project->name }}"
+                         class="w-full h-full object-cover">
+                    @else
                     {{ strtoupper(substr($project->name, 0, 2)) }}
+                    @endif
                 </a>
-                <div class="flex items-center gap-2">
+
+                <div class="flex items-center gap-1">
                     <span class="px-2.5 py-1 text-xs font-medium rounded-full {{ $project->status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-amber-500/10 text-amber-500' }}">
                         {{ ucfirst($project->status) }}
                     </span>
+                    <!-- Edit button -->
+                    <button onclick="openEditProjectModal({{ $project->id }}, '{{ e($project->name) }}', '{{ e($project->description ?? '') }}', '{{ $project->color }}', {{ $project->picture ? 'true' : 'false' }})"
+                            class="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                    </button>
+                    <!-- Delete button -->
                     <form action="{{ route('projects.destroy', $project->id) }}" method="POST" onsubmit="return confirm('Delete this project?')">
                         @csrf @method('DELETE')
                         <button type="submit" class="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
@@ -78,8 +102,8 @@
 
 <!-- New Project Modal -->
 <div id="new-project-modal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4">
-    <div class="bg-card rounded-2xl border border-border w-full max-w-md p-6 shadow-xl">
-        <div class="flex items-center justify-between mb-6">
+    <div class="bg-card rounded-2xl border border-border w-full max-w-md shadow-xl">
+        <div class="flex items-center justify-between p-6 border-b border-border">
             <h2 class="text-lg font-semibold text-foreground">New Project</h2>
             <button onclick="closeNewProjectModal()" class="p-2 rounded-lg hover:bg-muted">
                 <svg class="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -87,8 +111,50 @@
                 </svg>
             </button>
         </div>
-        <form action="{{ route('projects.store') }}" method="POST" class="space-y-4">
+        <form action="{{ route('projects.store') }}" method="POST" enctype="multipart/form-data" class="p-6 space-y-5">
             @csrf
+            <input type="hidden" name="color" id="new-project-color" value="#6366f1">
+
+            <!-- Picture upload -->
+            <div>
+                <label class="block text-sm font-medium text-foreground mb-2">Project Image <span class="text-muted-foreground font-normal">(optional)</span></label>
+                <div class="flex items-center gap-4">
+                    <label for="new-project-pic-input" class="relative cursor-pointer group/pic">
+                        <div id="new-project-preview" class="w-14 h-14 rounded-xl flex items-center justify-center text-white text-xl font-medium overflow-hidden"
+                             style="background-color: #6366f1">
+                            <svg class="w-6 h-6 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                        <div class="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center opacity-0 group-hover/pic:opacity-100 transition-opacity">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                        </div>
+                    </label>
+                    <input type="file" name="picture" id="new-project-pic-input" accept="image/*" class="hidden"
+                           onchange="previewNewProjectPic(this)">
+                    <div>
+                        <p class="text-xs text-muted-foreground">Click to upload</p>
+                        <p class="text-xs text-muted-foreground">JPG, PNG, WebP — max 2 MB</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Color swatches -->
+            <div>
+                <label class="block text-sm font-medium text-foreground mb-2">Color</label>
+                <div class="flex gap-2 flex-wrap" id="new-color-swatches">
+                    @foreach(['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899'] as $c)
+                    <button type="button" onclick="pickNewColor('{{ $c }}')"
+                            class="color-swatch w-7 h-7 rounded-lg ring-2 ring-offset-2 ring-offset-card transition-all"
+                            data-color="{{ $c }}"
+                            style="background-color: {{ $c }}; {{ $c === '#6366f1' ? 'ring-color: '.$c : 'ring-color: transparent' }}">
+                    </button>
+                    @endforeach
+                </div>
+            </div>
+
             <div>
                 <label class="block text-sm font-medium text-foreground mb-2">Project Name</label>
                 <input type="text" name="name" required placeholder="e.g. Website Redesign"
@@ -99,7 +165,7 @@
                 <textarea name="description" rows="3" placeholder="What is this project about?"
                           class="w-full px-4 py-2.5 bg-muted border-0 rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"></textarea>
             </div>
-            <div class="flex justify-end gap-3 pt-2">
+            <div class="flex justify-end gap-3 pt-1">
                 <button type="button" onclick="closeNewProjectModal()" class="px-4 py-2.5 bg-muted text-foreground rounded-xl text-sm font-medium hover:bg-muted/80 transition-colors">
                     Cancel
                 </button>
@@ -111,21 +177,223 @@
     </div>
 </div>
 
+<!-- Edit Project Modal -->
+<div id="edit-project-modal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4">
+    <div class="bg-card rounded-2xl border border-border w-full max-w-md shadow-xl">
+        <div class="flex items-center justify-between p-6 border-b border-border">
+            <h2 class="text-lg font-semibold text-foreground">Edit Project</h2>
+            <button onclick="closeEditProjectModal()" class="p-2 rounded-lg hover:bg-muted">
+                <svg class="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="edit-project-form" action="" method="POST" enctype="multipart/form-data" class="p-6 space-y-5">
+            @csrf @method('PUT')
+            <input type="hidden" name="color" id="edit-project-color">
+            <input type="hidden" name="remove_picture" id="edit-remove-picture" value="0">
+
+            <!-- Picture upload / current image -->
+            <div>
+                <label class="block text-sm font-medium text-foreground mb-2">Project Image</label>
+                <div class="flex items-center gap-4">
+                    <label for="edit-project-pic-input" class="relative cursor-pointer group/pic">
+                        <div id="edit-project-preview" class="w-14 h-14 rounded-xl flex items-center justify-center text-white text-xl font-medium overflow-hidden">
+                        </div>
+                        <div class="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center opacity-0 group-hover/pic:opacity-100 transition-opacity">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                        </div>
+                    </label>
+                    <input type="file" name="picture" id="edit-project-pic-input" accept="image/*" class="hidden"
+                           onchange="previewEditProjectPic(this)">
+                    <div class="space-y-1">
+                        <p class="text-xs text-muted-foreground">Click to change image</p>
+                        <button type="button" id="edit-remove-pic-btn" onclick="removeEditProjectPic()"
+                                class="text-xs text-destructive hover:underline hidden">
+                            Remove image
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Color swatches -->
+            <div>
+                <label class="block text-sm font-medium text-foreground mb-2">Color</label>
+                <div class="flex gap-2 flex-wrap" id="edit-color-swatches">
+                    @foreach(['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899'] as $c)
+                    <button type="button" onclick="pickEditColor('{{ $c }}')"
+                            class="edit-color-swatch w-7 h-7 rounded-lg ring-2 ring-offset-2 ring-offset-card transition-all"
+                            data-color="{{ $c }}"
+                            style="background-color: {{ $c }}; ring-color: transparent">
+                    </button>
+                    @endforeach
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-foreground mb-2">Project Name</label>
+                <input type="text" name="name" id="edit-project-name" required
+                       class="w-full px-4 py-2.5 bg-muted border-0 rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-foreground mb-2">Description</label>
+                <textarea name="description" id="edit-project-desc" rows="3"
+                          class="w-full px-4 py-2.5 bg-muted border-0 rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"></textarea>
+            </div>
+            <div class="flex justify-end gap-3 pt-1">
+                <button type="button" onclick="closeEditProjectModal()" class="px-4 py-2.5 bg-muted text-foreground rounded-xl text-sm font-medium hover:bg-muted/80 transition-colors">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 @push('scripts')
 <script>
+// ── New Project Modal ──────────────────────────────────────────────────────
 function openNewProjectModal() {
-    const modal = document.getElementById('new-project-modal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    document.getElementById('new-project-modal').classList.remove('hidden');
+    document.getElementById('new-project-modal').classList.add('flex');
 }
 function closeNewProjectModal() {
-    const modal = document.getElementById('new-project-modal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+    document.getElementById('new-project-modal').classList.add('hidden');
+    document.getElementById('new-project-modal').classList.remove('flex');
 }
 document.getElementById('new-project-modal').addEventListener('click', function(e) {
     if (e.target === this) closeNewProjectModal();
 });
+
+let currentNewColor = '#6366f1';
+
+function pickNewColor(color) {
+    currentNewColor = color;
+    document.getElementById('new-project-color').value = color;
+    // Update swatch rings
+    document.querySelectorAll('#new-color-swatches .color-swatch').forEach(sw => {
+        sw.style.ringColor = 'transparent';
+        sw.style.outline = sw.dataset.color === color ? `2px solid ${color}` : 'none';
+        sw.style.outlineOffset = '2px';
+    });
+    // Update preview background if no image picked
+    const preview = document.getElementById('new-project-preview');
+    if (!preview.querySelector('img')) {
+        preview.style.backgroundColor = color;
+    }
+}
+
+function previewNewProjectPic(input) {
+    if (!input.files || !input.files[0]) return;
+    const reader = new FileReader();
+    const preview = document.getElementById('new-project-preview');
+    reader.onload = e => {
+        preview.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`;
+        preview.style.backgroundColor = '';
+    };
+    reader.readAsDataURL(input.files[0]);
+}
+
+// ── Edit Project Modal ─────────────────────────────────────────────────────
+let editProjectHasPicture = false;
+let editCurrentColor = '#6366f1';
+
+function openEditProjectModal(id, name, desc, color, hasPicture) {
+    editProjectHasPicture = hasPicture;
+    editCurrentColor = color;
+
+    document.getElementById('edit-project-form').action = `/projects/${id}`;
+    document.getElementById('edit-project-name').value = name;
+    document.getElementById('edit-project-desc').value = desc;
+    document.getElementById('edit-project-color').value = color;
+    document.getElementById('edit-remove-picture').value = '0';
+
+    // Update swatch selection
+    document.querySelectorAll('.edit-color-swatch').forEach(sw => {
+        sw.style.outline = sw.dataset.color === color ? `2px solid ${sw.dataset.color}` : 'none';
+        sw.style.outlineOffset = '2px';
+    });
+
+    // Render preview
+    renderEditPreview(hasPicture, color, name, id);
+
+    // Remove pic button
+    document.getElementById('edit-remove-pic-btn').classList.toggle('hidden', !hasPicture);
+
+    document.getElementById('edit-project-modal').classList.remove('hidden');
+    document.getElementById('edit-project-modal').classList.add('flex');
+}
+
+function renderEditPreview(hasPicture, color, name, projectId) {
+    const preview = document.getElementById('edit-project-preview');
+    if (hasPicture) {
+        // Fetch current picture URL from the card
+        const card = document.querySelector(`[onclick*="openEditProjectModal(${projectId},"]`);
+        const img = card ? card.closest('.bg-card').querySelector('a img') : null;
+        if (img) {
+            preview.innerHTML = `<img src="${img.src}" class="w-full h-full object-cover">`;
+            preview.style.backgroundColor = '';
+        } else {
+            preview.style.backgroundColor = color;
+            preview.textContent = name.substring(0, 2).toUpperCase();
+        }
+    } else {
+        preview.innerHTML = '';
+        preview.style.backgroundColor = color;
+        preview.textContent = name.substring(0, 2).toUpperCase();
+    }
+}
+
+function closeEditProjectModal() {
+    document.getElementById('edit-project-modal').classList.add('hidden');
+    document.getElementById('edit-project-modal').classList.remove('flex');
+    // Reset file input
+    document.getElementById('edit-project-pic-input').value = '';
+}
+document.getElementById('edit-project-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeEditProjectModal();
+});
+
+function pickEditColor(color) {
+    editCurrentColor = color;
+    document.getElementById('edit-project-color').value = color;
+    document.querySelectorAll('.edit-color-swatch').forEach(sw => {
+        sw.style.outline = sw.dataset.color === color ? `2px solid ${sw.dataset.color}` : 'none';
+        sw.style.outlineOffset = '2px';
+    });
+    const preview = document.getElementById('edit-project-preview');
+    if (!preview.querySelector('img')) {
+        preview.style.backgroundColor = color;
+    }
+}
+
+function previewEditProjectPic(input) {
+    if (!input.files || !input.files[0]) return;
+    const reader = new FileReader();
+    const preview = document.getElementById('edit-project-preview');
+    reader.onload = e => {
+        preview.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`;
+        preview.style.backgroundColor = '';
+        document.getElementById('edit-remove-picture').value = '0';
+        document.getElementById('edit-remove-pic-btn').classList.remove('hidden');
+    };
+    reader.readAsDataURL(input.files[0]);
+}
+
+function removeEditProjectPic() {
+    document.getElementById('edit-remove-picture').value = '1';
+    document.getElementById('edit-project-pic-input').value = '';
+    const preview = document.getElementById('edit-project-preview');
+    preview.innerHTML = '';
+    preview.style.backgroundColor = editCurrentColor;
+    preview.textContent = document.getElementById('edit-project-name').value.substring(0, 2).toUpperCase();
+    document.getElementById('edit-remove-pic-btn').classList.add('hidden');
+}
 </script>
 @endpush
 @endsection

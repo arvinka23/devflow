@@ -39,8 +39,12 @@
 
     <div class="p-4 border-t border-border">
         <a href="{{ route('settings') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-muted transition-colors group">
-            <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary shrink-0">
+            <div class="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
+                @if(auth()->user()->profile_picture)
+                <img src="{{ asset('storage/' . auth()->user()->profile_picture) }}" alt="Avatar" class="w-full h-full object-cover">
+                @else
                 {{ auth()->user()->initials }}
+                @endif
             </div>
             <div class="flex-1 min-w-0">
                 <p class="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">{{ auth()->user()->name }}</p>

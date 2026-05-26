@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ProjectController extends Controller
 {
@@ -24,16 +25,25 @@ class ProjectController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name'        => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
+            'color'       => 'nullable|string|max:20',
+            'picture'     => 'nullable|image|mimes:jpg,jpeg,png,webp,gif|max:2048',
         ]);
 
         $colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
 
-        $request->user()->projects()->create([
-            ...$validated,
-            'color' => $colors[array_rand($colors)],
-        ]);
+        $data = [
+            'name'        => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'color'       => $validated['color'] ?? $colors[array_rand($colors)],
+        ];
+
+        if ($request->hasFile('picture')) {
+            $data['picture'] = $request->file('picture')->store('projects', 'public');
+        }
+
+        $request->user()->projects()->create($data);
 
         return redirect()->route('projects.index');
     }
@@ -51,9 +61,49 @@ class ProjectController extends Controller
         return view('projects.show', compact('project', 'tasks'));
     }
 
+    public function update(Request $request, Project $project)
+    {
+        abort_if($project->user_id !== $request->user()->id, 403);
+
+        $validated = $request->validate([
+            'name'           => 'required|string|max:255',
+            'description'    => 'nullable|string|max:1000',
+            'color'          => 'nullable|string|max:20',
+            'picture'        => 'nullable|image|mimes:jpg,jpeg,png,webp,gif|max:2048',
+            'remove_picture' => 'nullable|boolean',
+        ]);
+
+        $data = [
+            'name'        => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'color'       => $validated['color'] ?? $project->color,
+        ];
+
+        if ($request->hasFile('picture')) {
+            if ($project->picture) {
+                Storage::disk('public')->delete($project->picture);
+            }
+            $data['picture'] = $request->file('picture')->store('projects', 'public');
+        } elseif ($request->boolean('remove_picture')) {
+            if ($project->picture) {
+                Storage::disk('public')->delete($project->picture);
+            }
+            $data['picture'] = null;
+        }
+
+        $project->update($data);
+
+        return redirect()->route('projects.index')->with('success', 'Project updated.');
+    }
+
     public function destroy(Request $request, Project $project)
     {
         abort_if($project->user_id !== $request->user()->id, 403);
+
+        if ($project->picture) {
+            Storage::disk('public')->delete($project->picture);
+        }
+
         $project->delete();
         return redirect()->route('projects.index');
     }
