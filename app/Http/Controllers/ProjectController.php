@@ -36,7 +36,7 @@ class ProjectController extends Controller
         $data = [
             'name'        => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'color'       => $validated['color'] ?? $colors[array_rand($colors)],
+            'color'       => !empty($validated['color']) ? $validated['color'] : $colors[array_rand($colors)],
         ];
 
         if ($request->hasFile('picture')) {
@@ -76,7 +76,8 @@ class ProjectController extends Controller
         $data = [
             'name'        => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'color'       => $validated['color'] ?? $project->color,
+            'color'       => !empty($validated['color']) ? $validated['color'] : $project->color,
+            'picture'     => $project->picture, // always preserve unless explicitly changed below
         ];
 
         if ($request->hasFile('picture')) {
