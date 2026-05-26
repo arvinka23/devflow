@@ -36,10 +36,11 @@
             </div>
 
             <div>
-                <label for="email" class="block text-sm font-medium text-foreground mb-2">Email</label>
-                <input type="email" id="email" name="email" value="{{ old('email', auth()->user()->email) }}"
-                       class="w-full px-4 py-2.5 bg-muted border-0 rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-                @error('email') <p class="text-xs text-destructive mt-1">{{ $message }}</p> @enderror
+                <label class="block text-sm font-medium text-foreground mb-2">Email</label>
+                <div class="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-xl text-muted-foreground text-sm select-all cursor-default">
+                    {{ auth()->user()->email }}
+                </div>
+                <p class="text-xs text-muted-foreground mt-1">Email address cannot be changed.</p>
             </div>
 
             <div class="flex justify-end">

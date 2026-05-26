@@ -14,8 +14,7 @@ class SettingsController extends Controller
     public function update(Request $request)
     {
         $validated = $request->validate([
-            'name'  => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $request->user()->id,
+            'name' => 'required|string|max:255',
         ]);
 
         $request->user()->update($validated);
