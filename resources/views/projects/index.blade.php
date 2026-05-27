@@ -138,11 +138,13 @@
                             </svg>
                         </div>
                     </label>
-                    <input type="file" name="picture" id="new-project-pic-input" accept="image/*" class="hidden"
+                    <input type="file" id="new-project-pic-input" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"
                            onchange="previewNewProjectPic(this)">
+                    <input type="hidden" name="picture_base64" id="new-project-pic-base64" value="">
                     <div>
                         <p class="text-xs text-muted-foreground">Click to upload</p>
                         <p class="text-xs text-muted-foreground">JPG, PNG, WebP — max 2 MB</p>
+                        @error('picture')<p class="text-xs text-destructive mt-1">{{ $message }}</p>@enderror
                     </div>
                 </div>
             </div>
@@ -213,8 +215,9 @@
                             </svg>
                         </div>
                     </label>
-                    <input type="file" name="picture" id="edit-project-pic-input" accept="image/*" class="hidden"
+                    <input type="file" id="edit-project-pic-input" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"
                            onchange="previewEditProjectPic(this)">
+                    <input type="hidden" name="picture_base64" id="edit-project-pic-base64" value="">
                     <div class="space-y-1">
                         <p class="text-xs text-muted-foreground">Click to change image</p>
                         <button type="button" id="edit-remove-pic-btn" onclick="removeEditProjectPic()"
@@ -296,11 +299,18 @@ function pickNewColor(color) {
 
 function previewNewProjectPic(input) {
     if (!input.files || !input.files[0]) return;
+    if (input.files[0].size > 2 * 1024 * 1024) {
+        input.value = '';
+        document.getElementById('new-project-pic-base64').value = '';
+        alert('Image must be under 2 MB.');
+        return;
+    }
     const reader = new FileReader();
     const preview = document.getElementById('new-project-preview');
     reader.onload = e => {
         preview.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`;
         preview.style.backgroundColor = '';
+        document.getElementById('new-project-pic-base64').value = e.target.result;
     };
     reader.readAsDataURL(input.files[0]);
 }
@@ -364,8 +374,8 @@ function renderEditPreview(hasPicture, color, name, projectId) {
 function closeEditProjectModal() {
     document.getElementById('edit-project-modal').classList.add('hidden');
     document.getElementById('edit-project-modal').classList.remove('flex');
-    // Reset file input
     document.getElementById('edit-project-pic-input').value = '';
+    document.getElementById('edit-project-pic-base64').value = '';
 }
 document.getElementById('edit-project-modal').addEventListener('click', function(e) {
     if (e.target === this) closeEditProjectModal();
@@ -386,6 +396,12 @@ function pickEditColor(color) {
 
 function previewEditProjectPic(input) {
     if (!input.files || !input.files[0]) return;
+    if (input.files[0].size > 2 * 1024 * 1024) {
+        input.value = '';
+        document.getElementById('edit-project-pic-base64').value = '';
+        alert('Image must be under 2 MB.');
+        return;
+    }
     const reader = new FileReader();
     const preview = document.getElementById('edit-project-preview');
     reader.onload = e => {
@@ -393,6 +409,7 @@ function previewEditProjectPic(input) {
         preview.style.backgroundColor = '';
         document.getElementById('edit-remove-picture').value = '0';
         document.getElementById('edit-remove-pic-btn').classList.remove('hidden');
+        document.getElementById('edit-project-pic-base64').value = e.target.result;
     };
     reader.readAsDataURL(input.files[0]);
 }
@@ -400,6 +417,7 @@ function previewEditProjectPic(input) {
 function removeEditProjectPic() {
     document.getElementById('edit-remove-picture').value = '1';
     document.getElementById('edit-project-pic-input').value = '';
+    document.getElementById('edit-project-pic-base64').value = '';
     const preview = document.getElementById('edit-project-preview');
     preview.innerHTML = '';
     preview.style.backgroundColor = editCurrentColor;
