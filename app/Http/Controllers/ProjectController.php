@@ -90,11 +90,13 @@ class ProjectController extends Controller
         ];
 
         if ($request->hasFile('picture')) {
+            // Store new file first; only delete the old one once the write succeeds
+            // so a storage failure never leaves a dangling DB reference.
+            $path = $request->file('picture')->store('projects', 'public');
+            abort_if($path === false, 500, 'Failed to store picture. Please try again.');
             if ($project->picture) {
                 Storage::disk('public')->delete($project->picture);
             }
-            $path = $request->file('picture')->store('projects', 'public');
-            abort_if($path === false, 500, 'Failed to store picture. Please try again.');
             $data['picture'] = $path;
         } elseif ($request->boolean('remove_picture')) {
             if ($project->picture) {
