@@ -21,6 +21,15 @@
         </div>
 
         <div class="flex items-center gap-2">
+            <!-- Quick Add Task -->
+            <button onclick="openQuickTaskModal()" title="Quick add task"
+                    class="flex items-center gap-1.5 px-3 py-1.5 bg-primary rounded-xl text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span class="hidden sm:inline">New Task</span>
+            </button>
+
             <button onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-muted transition-colors">
                 <!-- Sun: visible in dark mode -->
                 <svg class="w-5 h-5 text-muted-foreground hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">

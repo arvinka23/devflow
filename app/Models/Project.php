@@ -11,7 +11,7 @@ class Project extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['user_id', 'name', 'description', 'color', 'status', 'picture'];
+    protected $fillable = ['user_id', 'name', 'description', 'color', 'status', 'picture', 'github_repo'];
 
     public function user(): BelongsTo
     {
@@ -21,6 +21,11 @@ class Project extends Model
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);
+    }
+
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(ActivityLog::class);
     }
 
     public function getProgressAttribute(): int

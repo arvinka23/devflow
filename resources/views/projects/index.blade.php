@@ -119,18 +119,33 @@
                 @endif
             </div>
 
-            <div class="flex items-center gap-4 mt-4 pt-4 border-t border-border text-sm">
-                <div class="flex items-center gap-1.5 text-muted-foreground">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                    </svg>
-                    {{ $project->tasks_count }} tasks
+            <div class="flex items-center justify-between mt-4 pt-4 border-t border-border text-sm">
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-1.5 text-muted-foreground">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                        {{ $project->tasks_count }} tasks
+                    </div>
+                    @if($project->next_due_date)
+                    @php
+                        $due = \Carbon\Carbon::parse($project->next_due_date);
+                        $daysLeft = now()->startOfDay()->diffInDays($due->startOfDay(), false);
+                        $dueClass = $daysLeft < 0 ? 'text-red-500 bg-red-500/10' : ($daysLeft <= 3 ? 'text-amber-500 bg-amber-500/10' : 'text-muted-foreground bg-muted');
+                    @endphp
+                    <span class="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs {{ $dueClass }}">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        {{ $due->format('M j') }}
+                    </span>
+                    @endif
                 </div>
-                <div class="flex items-center gap-1.5 text-muted-foreground">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="flex items-center gap-1.5 text-muted-foreground text-xs">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    {{ $project->updated_at->diffForHumans() }}
+                    {{ (\Carbon\Carbon::parse($project->last_activity_at ?? $project->updated_at))->diffForHumans() }}
                 </div>
             </div>
         </div>

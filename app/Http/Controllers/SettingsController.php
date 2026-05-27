@@ -86,6 +86,24 @@ class SettingsController extends Controller
         return redirect()->route('settings')->with('success', 'Profile picture removed.');
     }
 
+    public function updateGithubToken(Request $request)
+    {
+        $request->validate([
+            'github_token' => 'nullable|string|max:500',
+        ]);
+
+        $token = $request->input('github_token');
+
+        // Reject if the user accidentally submitted placeholder bullet characters
+        if ($token && preg_match('/^[•\*]+$/', $token)) {
+            return redirect()->route('settings')->withErrors(['github_token' => 'Please paste your actual GitHub token, not the placeholder.']);
+        }
+
+        $request->user()->update(['github_token' => $token ?: null]);
+
+        return redirect()->route('settings')->with('success', 'GitHub token saved.');
+    }
+
     public function deleteAccount(Request $request)
     {
         $user = $request->user();
