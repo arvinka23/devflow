@@ -23,6 +23,12 @@
     </div>
     @endif
 
+    @if($errors->any())
+    <div class="px-4 py-3 bg-destructive/10 text-destructive rounded-xl text-sm font-medium">
+        {{ $errors->first() }}
+    </div>
+    @endif
+
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         @forelse($projects as $project)
         <div class="bg-card rounded-2xl border border-border p-6 hover:border-primary/50 transition-colors group">
@@ -119,7 +125,7 @@
         </div>
         <form action="{{ route('projects.store') }}" method="POST" enctype="multipart/form-data" class="p-6 space-y-5">
             @csrf
-            <input type="hidden" name="color" id="new-project-color" value="#6366f1">
+            <input type="hidden" name="color" id="new-project-color" value="{{ old('color', '#6366f1') }}">
 
             <!-- Picture upload -->
             <div>
@@ -127,7 +133,7 @@
                 <div class="flex items-center gap-4">
                     <label for="new-project-pic-input" class="relative cursor-pointer group/pic">
                         <div id="new-project-preview" class="w-14 h-14 rounded-xl flex items-center justify-center text-white text-xl font-medium overflow-hidden"
-                             style="background-color: #6366f1">
+                             style="background-color: {{ old('color', '#6366f1') }}">
                             <svg class="w-6 h-6 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                             </svg>
@@ -143,6 +149,9 @@
                     <div>
                         <p class="text-xs text-muted-foreground">Click to upload</p>
                         <p class="text-xs text-muted-foreground">JPG, PNG, WebP — max 2 MB</p>
+                        @error('picture')
+                        <p class="text-xs text-destructive mt-1">{{ $message }}</p>
+                        @enderror
                     </div>
                 </div>
             </div>
@@ -164,12 +173,13 @@
             <div>
                 <label class="block text-sm font-medium text-foreground mb-2">Project Name</label>
                 <input type="text" name="name" required placeholder="e.g. Website Redesign"
+                       value="{{ old('name') }}"
                        class="w-full px-4 py-2.5 bg-muted border-0 rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring">
             </div>
             <div>
                 <label class="block text-sm font-medium text-foreground mb-2">Description <span class="text-muted-foreground font-normal">(optional)</span></label>
                 <textarea name="description" rows="3" placeholder="What is this project about?"
-                          class="w-full px-4 py-2.5 bg-muted border-0 rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"></textarea>
+                          class="w-full px-4 py-2.5 bg-muted border-0 rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none">{{ old('description') }}</textarea>
             </div>
             <div class="flex justify-end gap-3 pt-1">
                 <button type="button" onclick="closeNewProjectModal()" class="px-4 py-2.5 bg-muted text-foreground rounded-xl text-sm font-medium hover:bg-muted/80 transition-colors">
@@ -221,6 +231,9 @@
                                 class="text-xs text-destructive hover:underline hidden">
                             Remove image
                         </button>
+                        @error('picture')
+                        <p class="text-xs text-destructive">{{ $message }}</p>
+                        @enderror
                     </div>
                 </div>
             </div>
@@ -264,6 +277,21 @@
 @push('scripts')
 <script>
 // ── New Project Modal ──────────────────────────────────────────────────────
+@if($errors->any())
+// Re-open the new project modal with preserved input when validation fails.
+document.addEventListener('DOMContentLoaded', () => {
+    openNewProjectModal();
+    // Sync color swatch highlight to the old value
+    const oldColor = document.getElementById('new-project-color').value;
+    if (oldColor) {
+        document.querySelectorAll('#new-color-swatches .color-swatch').forEach(sw => {
+            sw.style.outline = sw.dataset.color === oldColor ? `2px solid ${oldColor}` : 'none';
+            sw.style.outlineOffset = '2px';
+        });
+    }
+});
+@endif
+
 function openNewProjectModal() {
     document.getElementById('new-project-modal').classList.remove('hidden');
     document.getElementById('new-project-modal').classList.add('flex');
