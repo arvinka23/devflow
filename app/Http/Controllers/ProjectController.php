@@ -42,7 +42,7 @@ class ProjectController extends Controller
         if ($request->filled('picture_base64')) {
             $path = $this->saveBase64Picture($request->input('picture_base64'));
             if ($path === null) {
-                return back()->withInput()
+                return back()->withInput($request->except('picture_base64'))
                     ->withErrors(['picture' => 'The image could not be processed. Use a JPG, PNG, WebP, or GIF under 2 MB.']);
             }
             $data['picture'] = $path;
@@ -87,7 +87,7 @@ class ProjectController extends Controller
         if ($request->filled('picture_base64')) {
             $path = $this->saveBase64Picture($request->input('picture_base64'));
             if ($path === null) {
-                return back()->withInput()
+                return back()->withInput($request->except('picture_base64'))
                     ->withErrors(['picture' => 'The image could not be processed. Use a JPG, PNG, WebP, or GIF under 2 MB.']);
             }
             // Store new file first, then delete old one so a write failure never
@@ -122,21 +122,27 @@ class ProjectController extends Controller
 
     private function saveBase64Picture(string $base64): ?string
     {
-        if (!preg_match('/^data:(image\/(?:jpeg|png|webp|gif));base64,(.+)$/s', $base64, $matches)) {
+        if (!preg_match('/^data:image\/[a-z]+;base64,(.+)$/s', $base64, $matches)) {
             return null;
         }
 
-        $imageData = base64_decode($matches[2], true);
+        $imageData = base64_decode($matches[1], true);
 
         if ($imageData === false || strlen($imageData) > 2 * 1024 * 1024) {
             return null;
         }
 
-        $ext  = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'][$matches[1]];
-        $path = 'projects/' . Str::uuid() . '.' . $ext;
+        // Verify actual content — never trust the client-supplied MIME prefix.
+        $mime       = (new \finfo(FILEINFO_MIME_TYPE))->buffer($imageData);
+        $extensions = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
 
-        Storage::disk('public')->put($path, $imageData);
+        if (!array_key_exists($mime, $extensions)) {
+            return null;
+        }
 
-        return $path;
+        $path    = 'projects/' . Str::uuid() . '.' . $extensions[$mime];
+        $written = Storage::disk('public')->put($path, $imageData);
+
+        return $written ? $path : null;
     }
 }
