@@ -26,6 +26,51 @@
         </button>
     </div>
 
+    <!-- Project stats strip -->
+    @php
+        $totalTasks = $tasks['todo']->count() + $tasks['in_progress']->count() + $tasks['done']->count();
+        $donePct    = $totalTasks > 0 ? round($tasks['done']->count() / $totalTasks * 100, 1) : 0;
+        $inPct      = $totalTasks > 0 ? round($tasks['in_progress']->count() / $totalTasks * 100, 1) : 0;
+    @endphp
+    @if($totalTasks > 0)
+    <div class="bg-card rounded-2xl border border-border p-4 flex flex-col sm:flex-row sm:items-center gap-4 stagger-animate" style="animation-delay: 40ms">
+        <div class="flex-1">
+            <div class="flex items-center justify-between text-sm mb-2">
+                <span class="text-muted-foreground font-medium">Overall Progress</span>
+                <span class="text-foreground font-semibold">{{ $project->progress }}%</span>
+            </div>
+            <div class="h-2.5 bg-muted rounded-full overflow-hidden flex">
+                @if($tasks['done']->count() > 0)
+                <div class="h-full bg-green-500 transition-all duration-1000 ease-out" style="width: 0%" data-pw="{{ $donePct }}"></div>
+                @endif
+                @if($tasks['in_progress']->count() > 0)
+                <div class="h-full bg-amber-500 transition-all duration-1000 ease-out" style="width: 0%" data-pw="{{ $inPct }}"></div>
+                @endif
+            </div>
+        </div>
+        <div class="flex items-center gap-5 sm:border-l sm:border-border sm:pl-5 shrink-0">
+            <div class="text-center">
+                <div class="text-xl font-semibold text-foreground">{{ $tasks['todo']->count() }}</div>
+                <div class="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-0.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block"></span>To Do
+                </div>
+            </div>
+            <div class="text-center">
+                <div class="text-xl font-semibold text-amber-500">{{ $tasks['in_progress']->count() }}</div>
+                <div class="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-0.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span>In Progress
+                </div>
+            </div>
+            <div class="text-center">
+                <div class="text-xl font-semibold text-green-500">{{ $tasks['done']->count() }}</div>
+                <div class="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-0.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>Done
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <!-- Kanban Board -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         @php
@@ -47,12 +92,19 @@
         @endphp
 
         @foreach($columns as $column)
-        <div class="bg-muted/30 rounded-2xl p-4">
+        @php
+            $colBadgeClass = match($column['id']) {
+                'in_progress' => 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+                'done'        => 'bg-green-500/10 text-green-600 dark:text-green-400',
+                default       => 'bg-muted text-muted-foreground',
+            };
+        @endphp
+        <div class="bg-muted/30 rounded-2xl p-4 stagger-animate" style="animation-delay: {{ 80 + $loop->index * 80 }}ms">
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-2">
                     <div class="w-3 h-3 rounded-full {{ $column['color'] }}"></div>
                     <h3 class="font-medium text-foreground">{{ $column['title'] }}</h3>
-                    <span class="px-2 py-0.5 text-xs font-medium bg-muted rounded-full text-muted-foreground">
+                    <span class="px-2 py-0.5 text-xs font-semibold rounded-full {{ $colBadgeClass }}">
                         {{ $tasks[$column['id']]->count() }}
                     </span>
                 </div>
@@ -65,7 +117,7 @@
                     $checklistDone  = $task->checklists->where('completed', true)->count();
                     $isOverdue = $task->due_date && now()->startOfDay()->gt($task->due_date) && $task->status !== 'done';
                 @endphp
-                <div class="task-card bg-card rounded-xl border border-border p-4 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group"
+                <div class="task-card bg-card rounded-xl border border-border p-4 cursor-pointer hover:border-primary/50 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 group"
                      draggable="true"
                      data-task-id="{{ $task->id }}"
                      data-title="{{ e($task->title) }}"
@@ -257,6 +309,15 @@
 
 @push('scripts')
 <script>
+// Animate segmented progress bars from 0 to their actual widths on load.
+document.addEventListener('DOMContentLoaded', () => {
+    requestAnimationFrame(() => setTimeout(() => {
+        document.querySelectorAll('[data-pw]').forEach(el => {
+            el.style.width = el.dataset.pw + '%';
+        });
+    }, 80));
+});
+
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 let draggedTaskId = null;
 let editingTaskId = null;
@@ -452,7 +513,7 @@ function updateCardBadge(taskId) {
     if (!badge) return;   // badge only exists if there were items on page load; reloads on nav
     const total = currentChecklists.length;
     const done  = currentChecklists.filter(c => c.completed).length;
-    // Hide the badge entirely when all items have been deleted (matches server-side @if logic)
+    // Hide the badge entirely when all items have been deleted (matches the server-side conditional)
     badge.classList.toggle('hidden', total === 0);
     const countEl = badge.querySelector('[data-checklist-count]');
     if (countEl) countEl.textContent = `${done}/${total}`;

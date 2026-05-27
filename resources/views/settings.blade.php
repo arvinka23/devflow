@@ -43,7 +43,7 @@
                 </div>
 
                 <div class="space-y-3">
-                    {{-- Upload form — base64 workflow, no multipart --}}
+                    {{-- Same pattern as project image uploads: canvas → hidden base64 input → plain form submit --}}
                     <form id="avatar-upload-form" action="{{ route('settings.avatar') }}" method="POST">
                         @csrf
                         <input type="hidden" name="avatar_base64" id="avatar-base64" value="">
@@ -161,14 +161,40 @@ document.getElementById('avatar-file-input').addEventListener('change', function
         alert('Image must be under 4 MB.');
         return;
     }
-    const reader = new FileReader();
-    reader.onload = e => {
+
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(this.files[0]);
+
+    img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+
+        // Resize to max 512×512 — keeps the JSON body well under any PHP buffer limit.
+        const MAX = 512;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+            if (w >= h) { h = Math.round(h * MAX / w); w = MAX; }
+            else        { w = Math.round(w * MAX / h); h = MAX; }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width  = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+
+        const base64 = canvas.toDataURL('image/jpeg', 0.85);
+
+        // Show preview immediately so the user sees feedback.
         document.getElementById('avatar-preview').innerHTML =
-            `<img src="${e.target.result}" alt="Profile photo" class="w-20 h-20 rounded-full object-cover ring-2 ring-border">`;
-        document.getElementById('avatar-base64').value = e.target.result;
+            `<img src="${base64}" alt="Profile photo" class="w-20 h-20 rounded-full object-cover ring-2 ring-border">`;
+
+        // Plain form submit — identical to how project image uploads work.
+        // URL-encoded POST bodies are parsed by PHP directly into $_POST without
+        // needing a temp file, so the built-in server handles them reliably.
+        document.getElementById('avatar-base64').value = base64;
         document.getElementById('avatar-upload-form').submit();
     };
-    reader.readAsDataURL(this.files[0]);
+
+    img.src = objectUrl;
 });
 </script>
 @endpush
