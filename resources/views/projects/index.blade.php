@@ -144,7 +144,7 @@
                             </svg>
                         </div>
                     </label>
-                    <input type="file" name="picture" id="new-project-pic-input" accept="image/*" class="hidden"
+                    <input type="file" name="picture" id="new-project-pic-input" accept="image/*" class="sr-only"
                            onchange="previewNewProjectPic(this)">
                     <div>
                         <p class="text-xs text-muted-foreground">Click to upload</p>
@@ -223,7 +223,7 @@
                             </svg>
                         </div>
                     </label>
-                    <input type="file" name="picture" id="edit-project-pic-input" accept="image/*" class="hidden"
+                    <input type="file" name="picture" id="edit-project-pic-input" accept="image/*" class="sr-only"
                            onchange="previewEditProjectPic(this)">
                     <div class="space-y-1">
                         <p class="text-xs text-muted-foreground">Click to change image</p>

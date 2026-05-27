@@ -25,6 +25,12 @@ class ProjectController extends Controller
 
     public function store(Request $request)
     {
+        Log::info('ProjectController::store called', [
+            'hasFile'    => $request->hasFile('picture'),
+            'allFiles'   => array_keys($request->allFiles()),
+            'fileError'  => $request->files->get('picture')?->getError(),
+        ]);
+
         $validated = $request->validate([
             'name'        => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
@@ -71,7 +77,8 @@ class ProjectController extends Controller
         Log::info('ProjectController::update called', [
             'project_id' => $project->id,
             'hasFile'    => $request->hasFile('picture'),
-            'allInput'   => array_keys($request->all()),
+            'allFiles'   => array_keys($request->allFiles()),
+            'fileError'  => $request->files->get('picture')?->getError(),
         ]);
 
         $validated = $request->validate([

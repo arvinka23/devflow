@@ -46,7 +46,7 @@
                     {{-- Upload form with visible button --}}
                     <form id="avatar-upload-form" action="{{ route('settings.avatar') }}" method="POST" enctype="multipart/form-data">
                         @csrf
-                        <input type="file" name="avatar" id="avatar-file-input" accept="image/*" class="hidden">
+                        <input type="file" name="avatar" id="avatar-file-input" accept="image/*" class="sr-only">
                         <button type="button" onclick="document.getElementById('avatar-file-input').click()"
                                 class="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
                             {{ auth()->user()->profile_picture ? 'Change Photo' : 'Upload Photo' }}
