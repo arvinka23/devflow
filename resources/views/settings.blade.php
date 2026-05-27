@@ -30,7 +30,7 @@
         <div class="p-6">
             <div class="flex items-center gap-6">
                 {{-- Avatar preview --}}
-                <div class="shrink-0">
+                <div class="shrink-0" id="avatar-preview">
                     @if(auth()->user()->profile_picture)
                     <img src="{{ asset('storage/' . auth()->user()->profile_picture) }}"
                          alt="Profile photo"
@@ -43,10 +43,11 @@
                 </div>
 
                 <div class="space-y-3">
-                    {{-- Upload form with visible button --}}
-                    <form id="avatar-upload-form" action="{{ route('settings.avatar') }}" method="POST" enctype="multipart/form-data">
+                    {{-- Upload form — base64 workflow, no multipart --}}
+                    <form id="avatar-upload-form" action="{{ route('settings.avatar') }}" method="POST">
                         @csrf
-                        <input type="file" name="avatar" id="avatar-file-input" accept="image/*" class="hidden">
+                        <input type="hidden" name="avatar_base64" id="avatar-base64" value="">
+                        <input type="file" id="avatar-file-input" accept="image/jpeg,image/png,image/webp,image/gif" class="sr-only">
                         <button type="button" onclick="document.getElementById('avatar-file-input').click()"
                                 class="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
                             {{ auth()->user()->profile_picture ? 'Change Photo' : 'Upload Photo' }}
@@ -154,9 +155,20 @@
 @push('scripts')
 <script>
 document.getElementById('avatar-file-input').addEventListener('change', function () {
-    if (this.files && this.files.length > 0) {
-        document.getElementById('avatar-upload-form').submit();
+    if (!this.files || !this.files[0]) return;
+    if (this.files[0].size > 4 * 1024 * 1024) {
+        this.value = '';
+        alert('Image must be under 4 MB.');
+        return;
     }
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById('avatar-preview').innerHTML =
+            `<img src="${e.target.result}" alt="Profile photo" class="w-20 h-20 rounded-full object-cover ring-2 ring-border">`;
+        document.getElementById('avatar-base64').value = e.target.result;
+        document.getElementById('avatar-upload-form').submit();
+    };
+    reader.readAsDataURL(this.files[0]);
 });
 </script>
 @endpush

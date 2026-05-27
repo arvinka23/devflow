@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class SettingsController extends Controller
@@ -28,34 +27,51 @@ class SettingsController extends Controller
 
     public function updateAvatar(Request $request)
     {
-        Log::info('updateAvatar called', [
-            'hasFile'    => $request->hasFile('avatar'),
-            'allFiles'   => array_keys($request->allFiles()),
-            'allInput'   => array_keys($request->all()),
+        $request->validate([
+            'avatar_base64' => 'required|string',
         ]);
 
-        $request->validate([
-            'avatar' => 'required|image|mimes:jpg,jpeg,png,webp,gif|max:4096',
-        ]);
+        $path = $this->saveBase64Avatar($request->input('avatar_base64'));
+        if ($path === null) {
+            return back()->withErrors(['avatar' => 'The image could not be processed. Use a JPG, PNG, WebP, or GIF under 4 MB.']);
+        }
 
         $user = $request->user();
-
-        // Store new file first; only delete the old one once we know the write succeeded.
-        $path = $request->file('avatar')->store('avatars', 'public');
-        abort_if($path === false, 500, 'Failed to store avatar. Please try again.');
 
         if ($user->profile_picture) {
             Storage::disk('public')->delete($user->profile_picture);
         }
 
-        Log::info('Avatar stored', ['path' => $path]);
-
         $user->profile_picture = $path;
         $user->save();
 
-        Log::info('User saved', ['profile_picture' => $user->profile_picture]);
-
         return redirect()->route('settings')->with('success', 'Profile picture updated.');
+    }
+
+    private function saveBase64Avatar(string $base64): ?string
+    {
+        if (!preg_match('/^data:image\/[a-z]+;base64,(.+)$/s', $base64, $matches)) {
+            return null;
+        }
+
+        $imageData = base64_decode($matches[1], true);
+
+        if ($imageData === false || strlen($imageData) > 4 * 1024 * 1024) {
+            return null;
+        }
+
+        // Verify actual image content — never trust the client-supplied MIME prefix.
+        $mime       = (new \finfo(FILEINFO_MIME_TYPE))->buffer($imageData);
+        $extensions = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
+
+        if (!array_key_exists($mime, $extensions)) {
+            return null;
+        }
+
+        $filename = 'avatars/' . bin2hex(random_bytes(16)) . '.' . $extensions[$mime];
+        $stored   = Storage::disk('public')->put($filename, $imageData);
+
+        return $stored ? $filename : null;
     }
 
     public function deleteAvatar(Request $request)
