@@ -40,12 +40,13 @@ class SettingsController extends Controller
 
         $user = $request->user();
 
+        // Store new file first; only delete the old one once we know the write succeeded.
+        $path = $request->file('avatar')->store('avatars', 'public');
+        abort_if($path === false, 500, 'Failed to store avatar. Please try again.');
+
         if ($user->profile_picture) {
             Storage::disk('public')->delete($user->profile_picture);
         }
-
-        $path = $request->file('avatar')->store('avatars', 'public');
-        abort_if($path === false, 500, 'Failed to store avatar. Please try again.');
 
         Log::info('Avatar stored', ['path' => $path]);
 
@@ -80,6 +81,8 @@ class SettingsController extends Controller
         // Delete first — if this fails, the user stays logged in and can retry.
         $user->delete();
         auth()->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
         return redirect('/');
     }
 }

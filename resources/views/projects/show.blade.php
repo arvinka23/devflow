@@ -399,6 +399,8 @@ async function addChecklistItem() {
         renderChecklists(currentChecklists);
         syncChecklistState();
         input.value = '';
+    } else {
+        alert('Failed to add item. Please try again.');
     }
 }
 
@@ -418,6 +420,8 @@ async function toggleChecklist(checklistId) {
         if (item) item.completed = data.completed;
         renderChecklists(currentChecklists);
         syncChecklistState();
+    } else {
+        alert('Failed to update item. Please try again.');
     }
 }
 
@@ -430,6 +434,8 @@ async function deleteChecklist(checklistId) {
         currentChecklists = currentChecklists.filter(c => c.id !== checklistId);
         renderChecklists(currentChecklists);
         syncChecklistState();
+    } else {
+        alert('Failed to delete item. Please try again.');
     }
 }
 
@@ -446,6 +452,8 @@ function updateCardBadge(taskId) {
     if (!badge) return;   // badge only exists if there were items on page load; reloads on nav
     const total = currentChecklists.length;
     const done  = currentChecklists.filter(c => c.completed).length;
+    // Hide the badge entirely when all items have been deleted (matches server-side @if logic)
+    badge.classList.toggle('hidden', total === 0);
     const countEl = badge.querySelector('[data-checklist-count]');
     if (countEl) countEl.textContent = `${done}/${total}`;
     if (done === total && total > 0) {
