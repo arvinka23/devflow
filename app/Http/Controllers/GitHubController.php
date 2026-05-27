@@ -44,7 +44,7 @@ class GitHubController extends Controller
             return response()->json(['repos' => $data]);
         } catch (\Throwable $e) {
             Cache::forget("github.repos.{$request->user()->id}");
-            return response()->json(['error' => 'Failed to fetch repos: ' . $e->getMessage()], 503);
+            return response()->json(['error' => 'Failed to fetch repositories. Please check your token and try again.'], 503);
         }
     }
 

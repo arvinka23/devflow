@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 class SettingsController extends Controller
@@ -100,6 +101,9 @@ class SettingsController extends Controller
         }
 
         $request->user()->update(['github_token' => $token ?: null]);
+
+        // Flush the cached repo list so the picker immediately reflects the new token.
+        Cache::forget('github.repos.' . $request->user()->id);
 
         return redirect()->route('settings')->with('success', 'GitHub token saved.');
     }

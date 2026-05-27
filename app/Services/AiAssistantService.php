@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use Anthropic\Client;
-use Anthropic\Messages\MessageParam;
 use App\Models\Project;
 
 class AiAssistantService

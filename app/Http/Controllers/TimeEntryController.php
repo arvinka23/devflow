@@ -6,6 +6,7 @@ use App\Models\Task;
 use App\Models\TimeEntry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TimeEntryController extends Controller
 {
@@ -34,23 +35,29 @@ class TimeEntryController extends Controller
     {
         abort_if($task->project->user_id !== $request->user()->id, 403);
 
-        // Only one running entry at a time per user per task
-        $running = TimeEntry::where('user_id', $request->user()->id)
-            ->where('task_id', $task->id)
-            ->running()
-            ->first();
+        // Only one running entry at a time per user per task.
+        // Wrapped in a transaction with a pessimistic lock to prevent duplicate
+        // running timers under concurrent requests.
+        $entry = DB::transaction(function () use ($request, $task) {
+            $running = TimeEntry::where('user_id', $request->user()->id)
+                ->where('task_id', $task->id)
+                ->running()
+                ->lockForUpdate()
+                ->first();
 
-        if ($running) {
-            return response()->json(['entry' => $this->entryArray($running)]);
-        }
+            if ($running) {
+                return $running;
+            }
 
-        $entry = TimeEntry::create([
-            'task_id'    => $task->id,
-            'user_id'    => $request->user()->id,
-            'started_at' => now(),
-        ]);
+            return TimeEntry::create([
+                'task_id'    => $task->id,
+                'user_id'    => $request->user()->id,
+                'started_at' => now(),
+            ]);
+        });
 
-        return response()->json(['entry' => $this->entryArray($entry)], 201);
+        $statusCode = $entry->wasRecentlyCreated ? 201 : 200;
+        return response()->json(['entry' => $this->entryArray($entry)], $statusCode);
     }
 
     public function stop(Request $request, Task $task): JsonResponse

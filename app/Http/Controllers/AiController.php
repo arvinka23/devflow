@@ -42,9 +42,11 @@ class AiController extends Controller
         }
 
         $validated = $request->validate([
-            'message'    => 'required|string|max:2000',
-            'history'    => 'nullable|array|max:20',
-            'project_id' => 'nullable|integer',
+            'message'          => 'required|string|max:2000',
+            'history'          => 'nullable|array|max:20',
+            'history.*.role'   => 'required|string|in:user,assistant',
+            'history.*.content'=> 'required|string|max:2000',
+            'project_id'       => 'nullable|integer',
         ]);
 
         if (!$this->checkRateLimit($request->user()->id)) {
