@@ -32,7 +32,7 @@ class TaskController extends Controller
         abort_if($task->project->user_id !== $request->user()->id, 403);
 
         $validated = $request->validate([
-            'title'       => 'sometimes|string|max:255',
+            'title'       => 'sometimes|string|min:1|max:255',
             'description' => 'sometimes|nullable|string|max:1000',
             'status'      => 'sometimes|in:todo,in_progress,done',
             'priority'    => 'sometimes|in:low,medium,high',

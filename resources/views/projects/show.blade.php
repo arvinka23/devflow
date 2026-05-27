@@ -97,11 +97,12 @@
                         @endif
                         @if($checklistTotal > 0)
                         <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium
-                            {{ $checklistDone === $checklistTotal ? 'bg-green-500/10 text-green-500' : 'bg-muted text-muted-foreground' }}">
+                            {{ $checklistDone === $checklistTotal ? 'bg-green-500/10 text-green-500' : 'bg-muted text-muted-foreground' }}"
+                            data-checklist-badge="{{ $task->id }}">
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
                             </svg>
-                            {{ $checklistDone }}/{{ $checklistTotal }}
+                            <span data-checklist-count>{{ $checklistDone }}/{{ $checklistTotal }}</span>
                         </span>
                         @endif
                     </div>
@@ -259,6 +260,7 @@
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 let draggedTaskId = null;
 let editingTaskId = null;
+let currentChecklists = [];   // in-memory state for the open edit modal
 
 // ── Drag & Drop ─────────────────────────────────────────────────────────────
 
@@ -358,20 +360,11 @@ async function saveEditModal() {
 
 // ── Checklist ────────────────────────────────────────────────────────────────
 
-async function loadChecklists() {
-    const res = await fetch(`/tasks/${editingTaskId}`, {
-        headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken },
-    });
-    // We embed checklist data directly from the page instead of a separate fetch
-    // Render from data attributes populated on load
-    renderChecklistsFromPage();
-}
-
-function renderChecklistsFromPage() {
-    // Checklist items are passed as a JSON blob via a hidden element
+function loadChecklists() {
+    // Read checklist data from the pre-rendered JSON blob embedded in the page.
     const raw = document.getElementById(`checklist-data-${editingTaskId}`);
-    const items = raw ? JSON.parse(raw.textContent) : [];
-    renderChecklists(items);
+    currentChecklists = raw ? JSON.parse(raw.textContent) : [];
+    renderChecklists(currentChecklists);
 }
 
 function renderChecklists(items) {
@@ -401,8 +394,11 @@ async function addChecklistItem() {
         body: JSON.stringify({ title }),
     });
     if (res.ok) {
+        const data = await res.json();
+        currentChecklists.push(data.item);
+        renderChecklists(currentChecklists);
+        syncChecklistState();
         input.value = '';
-        location.reload();
     }
 }
 
@@ -416,7 +412,13 @@ async function toggleChecklist(checklistId) {
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
         body: JSON.stringify({}),
     });
-    if (res.ok) location.reload();
+    if (res.ok) {
+        const data = await res.json();
+        const item = currentChecklists.find(c => c.id === checklistId);
+        if (item) item.completed = data.completed;
+        renderChecklists(currentChecklists);
+        syncChecklistState();
+    }
 }
 
 async function deleteChecklist(checklistId) {
@@ -424,7 +426,35 @@ async function deleteChecklist(checklistId) {
         method: 'DELETE',
         headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
     });
-    if (res.ok) location.reload();
+    if (res.ok) {
+        currentChecklists = currentChecklists.filter(c => c.id !== checklistId);
+        renderChecklists(currentChecklists);
+        syncChecklistState();
+    }
+}
+
+// Keeps the in-page JSON blob and card badge in sync after checklist mutations,
+// so the modal state survives without a full page reload.
+function syncChecklistState() {
+    const el = document.getElementById(`checklist-data-${editingTaskId}`);
+    if (el) el.textContent = JSON.stringify(currentChecklists);
+    updateCardBadge(editingTaskId);
+}
+
+function updateCardBadge(taskId) {
+    const badge = document.querySelector(`[data-checklist-badge="${taskId}"]`);
+    if (!badge) return;   // badge only exists if there were items on page load; reloads on nav
+    const total = currentChecklists.length;
+    const done  = currentChecklists.filter(c => c.completed).length;
+    const countEl = badge.querySelector('[data-checklist-count]');
+    if (countEl) countEl.textContent = `${done}/${total}`;
+    if (done === total && total > 0) {
+        badge.classList.remove('bg-muted', 'text-muted-foreground');
+        badge.classList.add('bg-green-500/10', 'text-green-500');
+    } else {
+        badge.classList.remove('bg-green-500/10', 'text-green-500');
+        badge.classList.add('bg-muted', 'text-muted-foreground');
+    }
 }
 
 function escHtml(str) {
@@ -432,10 +462,12 @@ function escHtml(str) {
 }
 </script>
 
-{{-- Inline checklist data for each task (read by JS when edit modal opens) --}}
+{{-- Inline checklist data for each task (read by JS when edit modal opens).
+     JSON_HEX_TAG escapes < and > so a title like "</script>" cannot break
+     out of this script block. --}}
 @foreach(array_merge($tasks['todo']->all(), $tasks['in_progress']->all(), $tasks['done']->all()) as $task)
 <script type="application/json" id="checklist-data-{{ $task->id }}">
-    {!! json_encode($task->checklists->map(fn($c) => ['id' => $c->id, 'title' => $c->title, 'completed' => $c->completed])) !!}
+    {!! json_encode($task->checklists->map(fn($c) => ['id' => $c->id, 'title' => $c->title, 'completed' => $c->completed]), JSON_HEX_TAG | JSON_HEX_AMP) !!}
 </script>
 @endforeach
 

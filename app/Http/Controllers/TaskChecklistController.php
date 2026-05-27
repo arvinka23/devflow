@@ -12,20 +12,27 @@ class TaskChecklistController extends Controller
     {
         abort_if($task->project->user_id !== $request->user()->id, 403);
 
-        $request->validate(['title' => 'required|string|max:255']);
+        $validated = $request->validate(['title' => 'required|string|max:255']);
 
-        $task->checklists()->create([
-            'title' => $request->title,
+        $checklist = $task->checklists()->create([
+            'title'     => $validated['title'],
             'completed' => false,
         ]);
 
-        return response()->json(['ok' => true]);
+        return response()->json([
+            'ok'   => true,
+            'item' => [
+                'id'        => $checklist->id,
+                'title'     => $checklist->title,
+                'completed' => false,
+            ],
+        ]);
     }
 
     public function update(Request $request, Task $task, TaskChecklist $checklist)
     {
         abort_if($task->project->user_id !== $request->user()->id, 403);
-        abort_if($checklist->task_id !== $task->id, 404);
+        abort_if($checklist->task_id !== $task->id, 403);
 
         $checklist->update(['completed' => !$checklist->completed]);
 
@@ -35,7 +42,7 @@ class TaskChecklistController extends Controller
     public function destroy(Request $request, Task $task, TaskChecklist $checklist)
     {
         abort_if($task->project->user_id !== $request->user()->id, 403);
-        abort_if($checklist->task_id !== $task->id, 404);
+        abort_if($checklist->task_id !== $task->id, 403);
 
         $checklist->delete();
 

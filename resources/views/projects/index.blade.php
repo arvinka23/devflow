@@ -45,7 +45,13 @@
                         {{ ucfirst($project->status) }}
                     </span>
                     <!-- Edit button -->
-                    <button onclick="openEditProjectModal({{ $project->id }}, '{{ e($project->name) }}', '{{ e($project->description ?? '') }}', '{{ $project->color }}', {{ $project->picture ? 'true' : 'false' }})"
+                    <button
+                            data-project-id="{{ $project->id }}"
+                            data-project-name="{{ $project->name }}"
+                            data-project-desc="{{ $project->description ?? '' }}"
+                            data-project-color="{{ $project->color }}"
+                            data-project-has-picture="{{ $project->picture ? '1' : '0' }}"
+                            onclick="openEditProjectModal(this)"
                             class="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
@@ -303,7 +309,13 @@ function previewNewProjectPic(input) {
 let editProjectHasPicture = false;
 let editCurrentColor = '#6366f1';
 
-function openEditProjectModal(id, name, desc, color, hasPicture) {
+function openEditProjectModal(btn) {
+    const id          = btn.dataset.projectId;
+    const name        = btn.dataset.projectName;
+    const desc        = btn.dataset.projectDesc;
+    const color       = btn.dataset.projectColor;
+    const hasPicture  = btn.dataset.projectHasPicture === '1';
+
     editProjectHasPicture = hasPicture;
     editCurrentColor = color;
 
@@ -332,9 +344,9 @@ function openEditProjectModal(id, name, desc, color, hasPicture) {
 function renderEditPreview(hasPicture, color, name, projectId) {
     const preview = document.getElementById('edit-project-preview');
     if (hasPicture) {
-        // Fetch current picture URL from the card
-        const card = document.querySelector(`[onclick*="openEditProjectModal(${projectId},"]`);
-        const img = card ? card.closest('.bg-card').querySelector('a img') : null;
+        // Fetch current picture URL from the card via the data attribute selector
+        const editBtn = document.querySelector(`[data-project-id="${projectId}"]`);
+        const img = editBtn ? editBtn.closest('.bg-card').querySelector('a img') : null;
         if (img) {
             preview.innerHTML = `<img src="${img.src}" class="w-full h-full object-cover">`;
             preview.style.backgroundColor = '';
