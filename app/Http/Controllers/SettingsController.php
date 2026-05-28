@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 class SettingsController extends Controller
@@ -84,6 +85,27 @@ class SettingsController extends Controller
         }
 
         return redirect()->route('settings')->with('success', 'Profile picture removed.');
+    }
+
+    public function updateGithubToken(Request $request)
+    {
+        $request->validate([
+            'github_token' => 'nullable|string|max:500',
+        ]);
+
+        $token = $request->input('github_token');
+
+        // Reject if the user accidentally submitted placeholder bullet characters
+        if ($token && preg_match('/^[•\*]+$/', $token)) {
+            return redirect()->route('settings')->withErrors(['github_token' => 'Please paste your actual GitHub token, not the placeholder.']);
+        }
+
+        $request->user()->update(['github_token' => $token ?: null]);
+
+        // Flush the cached repo list so the picker immediately reflects the new token.
+        Cache::forget('github.repos.' . $request->user()->id);
+
+        return redirect()->route('settings')->with('success', 'GitHub token saved.');
     }
 
     public function deleteAccount(Request $request)

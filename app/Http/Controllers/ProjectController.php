@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Project;
+use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -17,6 +19,20 @@ class ProjectController extends Controller
                 'tasks as todo_count'        => fn($q) => $q->where('status', 'todo'),
                 'tasks as in_progress_count' => fn($q) => $q->where('status', 'in_progress'),
                 'tasks as done_count'        => fn($q) => $q->where('status', 'done'),
+            ])
+            ->addSelect([
+                'projects.*',
+                'next_due_date' => Task::select('due_date')
+                    ->whereColumn('project_id', 'projects.id')
+                    ->whereNotNull('due_date')
+                    ->where('due_date', '>=', now()->toDateString())
+                    ->where('status', '!=', 'done')
+                    ->orderBy('due_date')
+                    ->limit(1),
+                'last_activity_at' => ActivityLog::select('created_at')
+                    ->whereColumn('project_id', 'projects.id')
+                    ->latest()
+                    ->limit(1),
             ])
             ->latest()
             ->get()
@@ -53,7 +69,14 @@ class ProjectController extends Controller
             $data['picture'] = $path;
         }
 
-        $request->user()->projects()->create($data);
+        $project = $request->user()->projects()->create($data);
+
+        ActivityLog::log(
+            $request->user(),
+            'project.created',
+            'created project "' . $project->name . '"',
+            $project
+        );
 
         return redirect()->route('projects.index');
     }
@@ -142,6 +165,12 @@ class ProjectController extends Controller
     public function destroy(Request $request, Project $project)
     {
         abort_if($project->user_id !== $request->user()->id, 403);
+
+        ActivityLog::log(
+            $request->user(),
+            'project.deleted',
+            'deleted project "' . $project->name . '"'
+        );
 
         if ($project->picture) {
             Storage::disk('public')->delete($project->picture);

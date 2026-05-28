@@ -55,6 +55,8 @@
 }
 
 @layer base {
+  [x-cloak] { display: none !important; }
+
   * {
     @apply border-border;
   }

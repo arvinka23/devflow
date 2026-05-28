@@ -32,6 +32,8 @@
 
     <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden" onclick="toggleMobileSidebar()"></div>
 
+    @include('partials.quick-task-modal')
+
     <script>
         function toggleMobileSidebar() {
             document.getElementById('mobile-sidebar').classList.toggle('-translate-x-full');

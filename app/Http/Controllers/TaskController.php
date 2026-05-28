@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Project;
 use App\Models\Task;
 use Illuminate\Http\Request;
@@ -22,7 +23,19 @@ class TaskController extends Controller
         $project = Project::findOrFail($validated['project_id']);
         abort_if($project->user_id !== $request->user()->id, 403);
 
-        Task::create($validated);
+        $task = Task::create($validated);
+
+        ActivityLog::log(
+            $request->user(),
+            'task.created',
+            'created task "' . $task->title . '"',
+            $project,
+            $task
+        );
+
+        if ($request->boolean('redirect_back')) {
+            return redirect()->back()->with('success', 'Task "' . $task->title . '" created.');
+        }
 
         return redirect()->route('projects.show', $project->id);
     }
@@ -40,7 +53,39 @@ class TaskController extends Controller
             'due_date'    => 'sometimes|nullable|date',
         ]);
 
+        $oldStatus = $task->status;
         $task->update($validated);
+
+        if (isset($validated['status']) && $validated['status'] !== $oldStatus) {
+            $statusLabels = ['todo' => 'To Do', 'in_progress' => 'In Progress', 'done' => 'Done'];
+            if ($validated['status'] === 'done') {
+                ActivityLog::log(
+                    $request->user(),
+                    'task.completed',
+                    'completed "' . $task->title . '"',
+                    $task->project,
+                    $task,
+                    ['from' => $oldStatus, 'to' => 'done']
+                );
+            } else {
+                ActivityLog::log(
+                    $request->user(),
+                    'task.status_changed',
+                    'moved "' . $task->title . '" to ' . ($statusLabels[$validated['status']] ?? $validated['status']),
+                    $task->project,
+                    $task,
+                    ['from' => $oldStatus, 'to' => $validated['status']]
+                );
+            }
+        } elseif (isset($validated['title']) || isset($validated['description']) || isset($validated['priority'])) {
+            ActivityLog::log(
+                $request->user(),
+                'task.updated',
+                'updated task "' . $task->title . '"',
+                $task->project,
+                $task
+            );
+        }
 
         return response()->json($task);
     }
@@ -48,7 +93,17 @@ class TaskController extends Controller
     public function destroy(Request $request, Task $task)
     {
         abort_if($task->project->user_id !== $request->user()->id, 403);
+        $project   = $task->project;
         $projectId = $task->project_id;
+
+        ActivityLog::log(
+            $request->user(),
+            'task.deleted',
+            'deleted task "' . $task->title . '"',
+            $project,
+            null
+        );
+
         $task->delete();
         return redirect()->route('projects.show', $projectId);
     }
