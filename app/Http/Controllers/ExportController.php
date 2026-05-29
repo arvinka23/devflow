@@ -11,13 +11,52 @@ class ExportController extends Controller
     {
         abort_if($project->user_id !== $request->user()->id, 403);
 
-        $data = $this->buildExportData($project);
-
         $filename = 'project-' . \Illuminate\Support\Str::slug($project->name) . '-' . now()->format('Ymd') . '.json';
 
-        return response()
-            ->json($data, 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
-            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        $headers = [
+            'Content-Type'        => 'application/json; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        // Stream JSON incrementally using lazy() so tasks are fetched in chunks
+        // and never fully materialised into a single PHP array.
+        $projectMeta = [
+            'name'        => $project->name,
+            'description' => $project->description,
+            'color'       => $project->color,
+            'status'      => $project->status,
+            'archived'    => (bool) $project->archived,
+            'exported_at' => now()->toIso8601String(),
+        ];
+
+        $callback = function () use ($project, $projectMeta) {
+            echo '{"project":' . json_encode($projectMeta, JSON_UNESCAPED_UNICODE) . ',"tasks":[';
+
+            $first = true;
+            foreach ($project->tasks()->with(['labels', 'milestone', 'checklists', 'comments.user'])->orderBy('status')->orderBy('order')->lazy() as $task) {
+                $row = [
+                    'title'       => $task->title,
+                    'description' => $task->description,
+                    'status'      => $task->status,
+                    'priority'    => $task->priority,
+                    'due_date'    => $task->due_date?->toDateString(),
+                    'milestone'   => $task->milestone?->title,
+                    'labels'      => $task->labels->pluck('name'),
+                    'checklists'  => $task->checklists->map(fn($c) => ['title' => $c->title, 'completed' => $c->completed]),
+                    'comments'    => $task->comments->map(fn($c) => ['user' => $c->user->name, 'body' => $c->body, 'at' => $c->created_at->toIso8601String()]),
+                ];
+
+                if (!$first) {
+                    echo ',';
+                }
+                echo json_encode($row, JSON_UNESCAPED_UNICODE);
+                $first = false;
+            }
+
+            echo ']}';
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     public function csv(Request $request, Project $project)
@@ -68,44 +107,4 @@ class ExportController extends Controller
         return preg_match('/^[=+\-@]/', $value) ? "'" . $value : $value;
     }
 
-    private function buildExportData(Project $project): array
-    {
-        return [
-            'project' => [
-                'name'        => $project->name,
-                'description' => $project->description,
-                'color'       => $project->color,
-                'status'      => $project->status,
-                'archived'    => (bool) $project->archived,
-                'exported_at' => now()->toIso8601String(),
-            ],
-            // lazy() processes Eloquent models in chunks so the raw model graph
-            // is churned through rather than all instantiated at once. Note that
-            // ->values()->all() does materialise the final mapped array fully —
-            // the saving is in peak model memory, not total output memory.
-            'tasks' => $project->tasks()
-                ->with(['labels', 'milestone', 'checklists', 'comments.user'])
-                ->orderBy('status')
-                ->orderBy('order')
-                ->lazy()
-                ->map(fn($task) => [
-                'title'       => $task->title,
-                'description' => $task->description,
-                'status'      => $task->status,
-                'priority'    => $task->priority,
-                'due_date'    => $task->due_date?->toDateString(),
-                'milestone'   => $task->milestone?->title,
-                'labels'      => $task->labels->pluck('name'),
-                'checklists'  => $task->checklists->map(fn($c) => [
-                    'title'     => $c->title,
-                    'completed' => $c->completed,
-                ]),
-                'comments' => $task->comments->map(fn($c) => [
-                    'user' => $c->user->name,
-                    'body' => $c->body,
-                    'at'   => $c->created_at->toIso8601String(),
-                ]),
-            ])->values()->all(),
-        ];
-    }
 }
