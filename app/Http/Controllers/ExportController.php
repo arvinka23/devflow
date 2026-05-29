@@ -1,0 +1,103 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Project;
+use Illuminate\Http\Request;
+
+class ExportController extends Controller
+{
+    public function json(Request $request, Project $project)
+    {
+        abort_if($project->user_id !== $request->user()->id, 403);
+
+        $data = $this->buildExportData($project);
+
+        $filename = 'project-' . \Illuminate\Support\Str::slug($project->name) . '-' . now()->format('Ymd') . '.json';
+
+        return response()
+            ->json($data, 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+    }
+
+    public function csv(Request $request, Project $project)
+    {
+        abort_if($project->user_id !== $request->user()->id, 403);
+
+        $tasks = $project->tasks()
+            ->with(['labels', 'milestone', 'checklists'])
+            ->orderBy('status')
+            ->orderBy('order')
+            ->get();
+
+        $filename = 'project-' . \Illuminate\Support\Str::slug($project->name) . '-' . now()->format('Ymd') . '.csv';
+
+        $headers = [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function () use ($project, $tasks) {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, ['Project', 'Task', 'Description', 'Status', 'Priority', 'Due Date', 'Milestone', 'Labels', 'Checklist Total', 'Checklist Done']);
+
+            foreach ($tasks as $task) {
+                fputcsv($handle, [
+                    $project->name,
+                    $task->title,
+                    $task->description ?? '',
+                    $task->status,
+                    $task->priority,
+                    $task->due_date?->toDateString() ?? '',
+                    $task->milestone?->title ?? '',
+                    $task->labels->pluck('name')->join(', '),
+                    $task->checklists->count(),
+                    $task->checklists->where('completed', true)->count(),
+                ]);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    private function buildExportData(Project $project): array
+    {
+        $tasks = $project->tasks()
+            ->with(['labels', 'milestone', 'checklists', 'comments.user'])
+            ->orderBy('status')
+            ->orderBy('order')
+            ->get();
+
+        return [
+            'project' => [
+                'name'        => $project->name,
+                'description' => $project->description,
+                'color'       => $project->color,
+                'status'      => $project->status,
+                'archived'    => (bool) $project->archived,
+                'exported_at' => now()->toIso8601String(),
+            ],
+            'tasks' => $tasks->map(fn($task) => [
+                'title'       => $task->title,
+                'description' => $task->description,
+                'status'      => $task->status,
+                'priority'    => $task->priority,
+                'due_date'    => $task->due_date?->toDateString(),
+                'milestone'   => $task->milestone?->title,
+                'labels'      => $task->labels->pluck('name'),
+                'checklists'  => $task->checklists->map(fn($c) => [
+                    'title'     => $c->title,
+                    'completed' => $c->completed,
+                ]),
+                'comments' => $task->comments->map(fn($c) => [
+                    'user' => $c->user->name,
+                    'body' => $c->body,
+                    'at'   => $c->created_at->toIso8601String(),
+                ]),
+            ]),
+        ];
+    }
+}

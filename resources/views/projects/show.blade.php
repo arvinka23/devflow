@@ -18,12 +18,26 @@
                 @endif
             </div>
         </div>
-        <button onclick="openAddTaskModal('todo')" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            Add Task
-        </button>
+        <div class="flex items-center gap-2">
+            <!-- View switcher -->
+            <div class="hidden sm:flex items-center gap-1 bg-muted rounded-xl p-1">
+                <span class="px-3 py-1.5 text-sm rounded-lg bg-card text-foreground font-medium shadow-sm">Kanban</span>
+                <a href="{{ route('projects.list', $project) }}" class="px-3 py-1.5 text-sm rounded-lg text-muted-foreground hover:text-foreground transition-colors">List</a>
+                <a href="{{ route('projects.calendar', $project) }}" class="px-3 py-1.5 text-sm rounded-lg text-muted-foreground hover:text-foreground transition-colors">Calendar</a>
+            </div>
+            <a href="{{ route('milestones.index', $project) }}" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border text-sm text-muted-foreground hover:bg-muted transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"/>
+                </svg>
+                Milestones
+            </a>
+            <button onclick="openAddTaskModal('todo')" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Add Task
+            </button>
+        </div>
     </div>
 
     <!-- Project stats strip -->

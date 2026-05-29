@@ -2,35 +2,24 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Project extends Model
+class Milestone extends Model
 {
-    use HasFactory;
+    protected $fillable = ['project_id', 'title', 'due_date'];
 
-    protected $fillable = ['user_id', 'name', 'description', 'color', 'status', 'picture', 'github_repo', 'archived'];
+    protected $casts = ['due_date' => 'date'];
 
-    public function user(): BelongsTo
+    public function project(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Project::class);
     }
 
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);
-    }
-
-    public function activityLogs(): HasMany
-    {
-        return $this->hasMany(ActivityLog::class);
-    }
-
-    public function milestones(): HasMany
-    {
-        return $this->hasMany(Milestone::class);
     }
 
     public function getProgressAttribute(): int

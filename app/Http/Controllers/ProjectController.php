@@ -13,9 +13,12 @@ class ProjectController extends Controller
 {
     public function index(Request $request)
     {
-        $query = $request->user()->projects();
+        $showArchived = $request->boolean('archived');
 
-        if ($request->filled('status') && in_array($request->input('status'), ['active', 'on-hold'])) {
+        $query = $request->user()->projects()
+            ->where('archived', $showArchived);
+
+        if (!$showArchived && $request->filled('status') && in_array($request->input('status'), ['active', 'on-hold'])) {
             $query->where('status', $request->input('status'));
         }
 
@@ -47,7 +50,9 @@ class ProjectController extends Controller
                 return $project;
             });
 
-        return view('projects.index', compact('projects'));
+        $archivedCount = $request->user()->projects()->where('archived', true)->count();
+
+        return view('projects.index', compact('projects', 'showArchived', 'archivedCount'));
     }
 
     public function store(Request $request)
@@ -173,6 +178,26 @@ class ProjectController extends Controller
         abort_if($project->user_id !== $request->user()->id, 403);
         $project->update(['status' => $project->status === 'active' ? 'on-hold' : 'active']);
         return back()->with('success', 'Project status updated.');
+    }
+
+    public function archive(Request $request, Project $project)
+    {
+        abort_if($project->user_id !== $request->user()->id, 403);
+        $project->update(['archived' => true]);
+
+        ActivityLog::log($request->user(), 'project.archived', 'archived project "' . $project->name . '"', $project);
+
+        return redirect()->route('projects.index')->with('success', 'Project archived.');
+    }
+
+    public function unarchive(Request $request, Project $project)
+    {
+        abort_if($project->user_id !== $request->user()->id, 403);
+        $project->update(['archived' => false]);
+
+        ActivityLog::log($request->user(), 'project.unarchived', 'unarchived project "' . $project->name . '"', $project);
+
+        return redirect()->route('projects.index', ['archived' => 1])->with('success', 'Project restored.');
     }
 
     public function destroy(Request $request, Project $project)
