@@ -24,12 +24,6 @@ class ExportController extends Controller
     {
         abort_if($project->user_id !== $request->user()->id, 403);
 
-        $tasks = $project->tasks()
-            ->with(['labels', 'milestone', 'checklists'])
-            ->orderBy('status')
-            ->orderBy('order')
-            ->get();
-
         $filename = 'project-' . \Illuminate\Support\Str::slug($project->name) . '-' . now()->format('Ymd') . '.csv';
 
         $headers = [
@@ -37,12 +31,14 @@ class ExportController extends Controller
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ];
 
-        $callback = function () use ($project, $tasks) {
+        // Use lazy() so tasks are fetched in chunks inside the stream callback —
+        // avoids loading the entire collection into PHP memory at once.
+        $callback = function () use ($project) {
             $handle = fopen('php://output', 'w');
 
             fputcsv($handle, ['Project', 'Task', 'Description', 'Status', 'Priority', 'Due Date', 'Milestone', 'Labels', 'Checklist Total', 'Checklist Done']);
 
-            foreach ($tasks as $task) {
+            foreach ($project->tasks()->with(['labels', 'milestone', 'checklists'])->orderBy('status')->orderBy('order')->lazy() as $task) {
                 fputcsv($handle, [
                     $this->csvSafe($project->name),
                     $this->csvSafe($task->title),

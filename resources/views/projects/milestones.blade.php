@@ -50,7 +50,7 @@
             <div>
                 <h3 class="font-semibold text-foreground">{{ $milestone->title }}</h3>
                 @if($milestone->due_date)
-                @php $overdue = $milestone->due_date->isPast() && $milestone->progress < 100; @endphp
+                @php $overdue = $milestone->due_date->lt(today()) && $milestone->progress < 100; @endphp
                 <p class="text-xs mt-0.5 {{ $overdue ? 'text-red-500' : 'text-muted-foreground' }}">
                     Due {{ $milestone->due_date->format('M j, Y') }}{{ $overdue ? ' — overdue' : '' }}
                 </p>
