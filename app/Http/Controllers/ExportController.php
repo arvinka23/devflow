@@ -44,14 +44,14 @@ class ExportController extends Controller
 
             foreach ($tasks as $task) {
                 fputcsv($handle, [
-                    $project->name,
-                    $task->title,
-                    $task->description ?? '',
+                    $this->csvSafe($project->name),
+                    $this->csvSafe($task->title),
+                    $this->csvSafe($task->description ?? ''),
                     $task->status,
                     $task->priority,
                     $task->due_date?->toDateString() ?? '',
-                    $task->milestone?->title ?? '',
-                    $task->labels->pluck('name')->join(', '),
+                    $this->csvSafe($task->milestone?->title ?? ''),
+                    $this->csvSafe($task->labels->pluck('name')->join(', ')),
                     $task->checklists->count(),
                     $task->checklists->where('completed', true)->count(),
                 ]);
@@ -61,6 +61,15 @@ class ExportController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Prevent CSV formula injection by prefixing cells that start with
+     * =, +, -, or @ with a single quote so spreadsheets treat them as text.
+     */
+    private function csvSafe(string $value): string
+    {
+        return preg_match('/^[=+\-@]/', $value) ? "'" . $value : $value;
     }
 
     private function buildExportData(Project $project): array

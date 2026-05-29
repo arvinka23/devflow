@@ -15,13 +15,7 @@ class MilestoneController extends Controller
         $milestones = $project->milestones()
             ->withCount(['tasks', 'tasks as done_count' => fn($q) => $q->where('status', 'done')])
             ->orderBy('due_date')
-            ->get()
-            ->map(function ($m) {
-                $m->progress = $m->tasks_count > 0
-                    ? (int) round($m->done_count / $m->tasks_count * 100)
-                    : 0;
-                return $m;
-            });
+            ->get();
 
         return view('projects.milestones', compact('project', 'milestones'));
     }
@@ -35,9 +29,10 @@ class MilestoneController extends Controller
             'due_date' => 'nullable|date',
         ]);
 
-        $milestone = $project->milestones()->create($validated);
+        $project->milestones()->create($validated);
 
-        return response()->json($milestone, 201);
+        return redirect()->route('milestones.index', $project)
+            ->with('success', 'Milestone created.');
     }
 
     public function update(Request $request, Project $project, Milestone $milestone)
