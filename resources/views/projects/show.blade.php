@@ -93,6 +93,14 @@
                 <span class="text-xs px-1.5 py-0.5 bg-green-500/15 text-green-500 rounded-md font-mono">{{ $project->github_repo }}</span>
                 @endif
             </button>
+            <button @click="tab = 'time'"
+                    :class="tab === 'time' ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:text-foreground'"
+                    class="px-4 py-2.5 text-sm font-medium transition-colors -mb-px flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Time
+            </button>
         </div>
 
         <!-- Kanban Tab -->
@@ -218,6 +226,62 @@
         <!-- GitHub Tab -->
         <div x-show="tab === 'github'" x-cloak>
             @include('partials.github-widget', ['project' => $project])
+        </div>
+
+        <!-- Time Report Tab -->
+        <div x-show="tab === 'time'" x-cloak x-data="projectTimeReport({{ $project->id }})">
+            <div class="bg-card rounded-2xl border border-border p-6">
+                <h3 class="text-base font-semibold text-foreground mb-4">Time Report</h3>
+
+                <!-- Loading state -->
+                <template x-if="loading">
+                    <div class="text-muted-foreground text-sm py-6 text-center">Loading…</div>
+                </template>
+
+                <!-- Error state -->
+                <template x-if="!loading && error">
+                    <div class="text-destructive text-sm py-4" x-text="error"></div>
+                </template>
+
+                <!-- Data loaded -->
+                <template x-if="!loading && data">
+                    <div>
+                        <!-- Total summary -->
+                        <div class="flex items-center gap-6 p-4 bg-muted/40 rounded-xl mb-6">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-foreground" x-text="data.total_human || '0s'"></div>
+                                <div class="text-xs text-muted-foreground mt-0.5">Total logged</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-foreground" x-text="data.by_task ? data.by_task.length : 0"></div>
+                                <div class="text-xs text-muted-foreground mt-0.5">Tasks tracked</div>
+                            </div>
+                        </div>
+
+                        <!-- Per-task breakdown -->
+                        <template x-if="data.by_task && data.by_task.length > 0">
+                            <div>
+                                <h4 class="text-sm font-medium text-foreground mb-3">Breakdown by Task</h4>
+                                <div class="space-y-2">
+                                    <template x-for="row in data.by_task" :key="row.task_title">
+                                        <div class="flex items-center justify-between p-3 bg-muted/30 rounded-xl">
+                                            <div class="flex-1 min-w-0">
+                                                <div class="text-sm font-medium text-foreground truncate" x-text="row.task_title"></div>
+                                                <div class="text-xs text-muted-foreground mt-0.5" x-text="row.entry_count + (row.entry_count === 1 ? ' session' : ' sessions')"></div>
+                                            </div>
+                                            <div class="font-mono text-sm font-semibold text-foreground ml-4 shrink-0" x-text="formatSeconds(row.total_seconds)"></div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template x-if="!data.by_task || data.by_task.length === 0">
+                            <p class="text-sm text-muted-foreground text-center py-4">No time logged for this project yet. Start a timer on any task to track time.</p>
+                        </template>
+                    </div>
+                </template>
+            </div>
         </div>
     </div>{{-- end x-data tab wrapper --}}
 </div>
@@ -355,21 +419,38 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-let draggedTaskId = null;
-let editingTaskId = null;
+let draggedTaskId   = null;
+let dragSourceCol   = null;   // column element where drag started
+let editingTaskId   = null;
 let currentChecklists = [];   // in-memory state for the open edit modal
 
 // ── Drag & Drop ─────────────────────────────────────────────────────────────
 
+// Returns the task-card element that the dragged card should be inserted before,
+// based on the cursor's Y position. Returns null to insert at the end.
+function getDragAfterElement(container, y) {
+    const cards = [...container.querySelectorAll('.task-card:not(.opacity-50)')];
+    return cards.reduce((closest, child) => {
+        const box    = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset, element: child };
+        }
+        return closest;
+    }, { offset: Number.NEGATIVE_INFINITY }).element ?? null;
+}
+
 document.querySelectorAll('.task-card').forEach(card => {
     card.addEventListener('dragstart', e => {
         draggedTaskId = card.dataset.taskId;
+        dragSourceCol = card.closest('[id^="column-"]');
         card.classList.add('opacity-50', 'rotate-1', 'scale-105');
         e.stopPropagation();
     });
-    card.addEventListener('dragend', e => {
+    card.addEventListener('dragend', () => {
         card.classList.remove('opacity-50', 'rotate-1', 'scale-105');
         draggedTaskId = null;
+        dragSourceCol = null;
     });
 });
 
@@ -386,15 +467,31 @@ document.querySelectorAll('[id^="column-"]').forEach(col => {
         col.classList.remove('bg-primary/5', 'ring-1', 'ring-primary/20', 'rounded-xl');
 
         if (!draggedTaskId) return;
-        const newStatus = col.dataset.status;
+        const newStatus    = col.dataset.status;
+        const isSameColumn = dragSourceCol === col;
+        const draggedCard  = document.querySelector(`[data-task-id="${draggedTaskId}"]`);
 
-        const res = await fetch(`/tasks/${draggedTaskId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
-            body: JSON.stringify({ status: newStatus }),
-        });
+        if (isSameColumn) {
+            // ── Same-column reorder: move card in DOM, persist order, no reload ──
+            const afterEl = getDragAfterElement(col, e.clientY);
+            const addBtn  = col.querySelector('button[onclick^="openAddTaskModal"]');
+            col.insertBefore(draggedCard, afterEl ?? addBtn);
 
-        if (res.ok) location.reload();
+            const ids = [...col.querySelectorAll('.task-card')].map(c => parseInt(c.dataset.taskId));
+            await fetch(`/projects/{{ $project->id }}/tasks/reorder`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                body:    JSON.stringify({ order: ids }),
+            });
+        } else {
+            // ── Cross-column drop: update status then reload ──
+            const res = await fetch(`/tasks/${draggedTaskId}`, {
+                method:  'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                body:    JSON.stringify({ status: newStatus }),
+            });
+            if (res.ok) location.reload();
+        }
     });
 });
 

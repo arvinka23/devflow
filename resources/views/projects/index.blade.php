@@ -29,6 +29,22 @@
     </div>
     @endif
 
+    <!-- Status filter pills -->
+    <div class="flex items-center gap-2">
+        <a href="{{ route('projects.index') }}"
+           class="px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors {{ !request('status') ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground' }}">
+            All
+        </a>
+        <a href="{{ route('projects.index', ['status' => 'active']) }}"
+           class="px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors {{ request('status') === 'active' ? 'bg-green-500 text-white' : 'bg-muted text-muted-foreground hover:text-foreground' }}">
+            Active
+        </a>
+        <a href="{{ route('projects.index', ['status' => 'on-hold']) }}"
+           class="px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors {{ request('status') === 'on-hold' ? 'bg-amber-500 text-white' : 'bg-muted text-muted-foreground hover:text-foreground' }}">
+            On Hold
+        </a>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         @forelse($projects as $project)
         <div class="bg-card rounded-2xl border border-border p-6 hover:border-primary/50 hover:-translate-y-1 hover:shadow-lg transition-all duration-200 group stagger-animate"
@@ -48,9 +64,14 @@
                 </a>
 
                 <div class="flex items-center gap-1">
-                    <span class="px-2.5 py-1 text-xs font-medium rounded-full {{ $project->status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-amber-500/10 text-amber-500' }}">
-                        {{ ucfirst($project->status) }}
-                    </span>
+                    <form method="POST" action="{{ route('projects.toggleStatus', $project) }}" onclick="event.stopPropagation()">
+                        @csrf
+                        <button type="submit"
+                                title="Click to toggle status"
+                                class="px-2.5 py-1 text-xs font-medium rounded-full transition-colors hover:opacity-80 {{ $project->status === 'active' ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20' : 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' }}">
+                            {{ $project->status === 'active' ? 'Active' : 'On Hold' }}
+                        </button>
+                    </form>
                     <!-- Edit button -->
                     <button
                             data-project-id="{{ $project->id }}"

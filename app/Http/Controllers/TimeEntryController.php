@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Project;
 use App\Models\Task;
 use App\Models\TimeEntry;
 use Illuminate\Http\JsonResponse;
@@ -86,6 +87,41 @@ class TimeEntryController extends Controller
 
         $timeEntry->delete();
         return response()->json(['ok' => true]);
+    }
+
+    public function projectReport(Request $request, Project $project): JsonResponse
+    {
+        abort_if($project->user_id !== $request->user()->id, 403);
+
+        $entries = TimeEntry::whereHas('task', fn($q) => $q->where('project_id', $project->id))
+            ->where('user_id', $request->user()->id)
+            ->with('task:id,title')
+            ->whereNotNull('ended_at')
+            ->orderByDesc('started_at')
+            ->get();
+
+        $byTask = $entries->groupBy('task_id')->map(fn($group) => [
+            'task_title'    => $group->first()->task->title,
+            'total_seconds' => $group->sum('duration_seconds'),
+            'entry_count'   => $group->count(),
+        ]);
+
+        $totalSeconds = $entries->sum('duration_seconds');
+
+        return response()->json([
+            'total_seconds' => $totalSeconds,
+            'total_human'   => $this->formatSeconds($totalSeconds),
+            'by_task'       => $byTask->values(),
+        ]);
+    }
+
+    private function formatSeconds(int $s): string
+    {
+        if ($s < 60) return "{$s}s";
+        $h = intdiv($s, 3600);
+        $m = intdiv($s % 3600, 60);
+        if ($h > 0) return $h . 'h' . ($m > 0 ? " {$m}m" : '');
+        return "{$m}m";
     }
 
     private function entryArray(TimeEntry $e): array

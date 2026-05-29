@@ -101,31 +101,102 @@
         </form>
     </div>
 
-    <!-- Notifications (UI only) -->
+    <!-- Password Change -->
+    <div class="bg-card rounded-2xl border border-border">
+        <div class="p-6 border-b border-border">
+            <h2 class="text-lg font-semibold text-foreground">Change Password</h2>
+            <p class="text-sm text-muted-foreground mt-1">Update your account password.</p>
+        </div>
+        <form action="{{ route('password.update') }}" method="POST" class="p-6 space-y-5">
+            @csrf
+            @method('PUT')
+
+            @if(session('status') === 'password-updated')
+            <div class="px-4 py-3 bg-green-500/10 text-green-500 rounded-xl text-sm font-medium">
+                Password updated successfully.
+            </div>
+            @endif
+
+            <div>
+                <label for="current_password" class="block text-sm font-medium text-foreground mb-2">Current Password</label>
+                <input type="password" id="current_password" name="current_password" required autocomplete="current-password"
+                       class="w-full px-4 py-2.5 bg-muted border-0 rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                @error('current_password', 'updatePassword')
+                <p class="text-xs text-destructive mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-foreground mb-2">New Password</label>
+                <input type="password" id="password" name="password" required autocomplete="new-password"
+                       class="w-full px-4 py-2.5 bg-muted border-0 rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                @error('password', 'updatePassword')
+                <p class="text-xs text-destructive mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+            <div>
+                <label for="password_confirmation" class="block text-sm font-medium text-foreground mb-2">Confirm New Password</label>
+                <input type="password" id="password_confirmation" name="password_confirmation" required autocomplete="new-password"
+                       class="w-full px-4 py-2.5 bg-muted border-0 rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" class="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
+                    Update Password
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Notifications -->
     <div class="bg-card rounded-2xl border border-border">
         <div class="p-6 border-b border-border">
             <h2 class="text-lg font-semibold text-foreground">Notifications</h2>
             <p class="text-sm text-muted-foreground mt-1">Choose what updates you want to receive.</p>
         </div>
-        <div class="p-6 space-y-6">
-            @foreach([
-                ['Email Notifications', 'Receive email updates about your projects.', true],
-                ['Push Notifications', 'Receive push notifications on your device.', false],
-                ['Task Reminders', 'Get reminded about upcoming task deadlines.', true],
-                ['Weekly Digest', 'Receive a weekly summary of your activity.', true],
-            ] as [$label, $desc, $checked])
+        <form action="{{ route('settings.notifications') }}" method="POST" class="p-6 space-y-6">
+            @csrf
+
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="font-medium text-foreground">{{ $label }}</p>
-                    <p class="text-sm text-muted-foreground">{{ $desc }}</p>
+                    <p class="font-medium text-foreground">Task Due Reminders</p>
+                    <p class="text-sm text-muted-foreground">Get reminded about upcoming task deadlines.</p>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" class="sr-only peer" @if($checked) checked @endif>
+                    <input type="checkbox" name="task_due_reminders" value="1" class="sr-only peer"
+                           @if(auth()->user()->notificationPreference('task_due_reminders', true)) checked @endif>
                     <div class="w-11 h-6 bg-muted rounded-full peer peer-checked:bg-primary peer-focus:ring-2 peer-focus:ring-ring after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
                 </label>
             </div>
-            @endforeach
-        </div>
+
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="font-medium text-foreground">Project Updates</p>
+                    <p class="text-sm text-muted-foreground">Receive notifications about project activity.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" name="project_updates" value="1" class="sr-only peer"
+                           @if(auth()->user()->notificationPreference('project_updates', true)) checked @endif>
+                    <div class="w-11 h-6 bg-muted rounded-full peer peer-checked:bg-primary peer-focus:ring-2 peer-focus:ring-ring after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                </label>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="font-medium text-foreground">Weekly Digest</p>
+                    <p class="text-sm text-muted-foreground">Receive a weekly summary of your activity.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" name="weekly_summary" value="1" class="sr-only peer"
+                           @if(auth()->user()->notificationPreference('weekly_summary', true)) checked @endif>
+                    <div class="w-11 h-6 bg-muted rounded-full peer peer-checked:bg-primary peer-focus:ring-2 peer-focus:ring-ring after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                </label>
+            </div>
+
+            <div class="flex justify-end pt-2">
+                <button type="submit" class="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
+                    Save Preferences
+                </button>
+            </div>
+        </form>
     </div>
 
     <!-- Integrations -->

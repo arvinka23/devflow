@@ -108,6 +108,19 @@ class SettingsController extends Controller
         return redirect()->route('settings')->with('success', 'GitHub token saved.');
     }
 
+    public function updateNotifications(Request $request)
+    {
+        // Unchecked checkboxes are not submitted — default each to false
+        $prefs = [
+            'task_due_reminders' => (bool) $request->input('task_due_reminders', false),
+            'project_updates'    => (bool) $request->input('project_updates', false),
+            'weekly_summary'     => (bool) $request->input('weekly_summary', false),
+        ];
+
+        $request->user()->update(['notification_preferences' => $prefs]);
+        return redirect()->route('settings')->with('success', 'Notification preferences saved.');
+    }
+
     public function deleteAccount(Request $request)
     {
         $user = $request->user();

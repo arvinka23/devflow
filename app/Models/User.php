@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'profile_picture', 'github_token', 'dashboard_layout'])]
+#[Fillable(['name', 'email', 'password', 'profile_picture', 'github_token', 'dashboard_layout', 'notification_preferences'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -21,8 +21,9 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
-            'github_token'      => 'encrypted',
-            'dashboard_layout'  => 'array',
+            'github_token'             => 'encrypted',
+            'dashboard_layout'         => 'array',
+            'notification_preferences' => 'array',
         ];
     }
 
@@ -34,6 +35,11 @@ class User extends Authenticatable
     public function projects(): HasMany
     {
         return $this->hasMany(Project::class);
+    }
+
+    public function notificationPreference(string $key, bool $default = true): bool
+    {
+        return (bool) ($this->notification_preferences[$key] ?? $default);
     }
 
     public function getInitialsAttribute(): string

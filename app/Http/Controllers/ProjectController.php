@@ -13,7 +13,13 @@ class ProjectController extends Controller
 {
     public function index(Request $request)
     {
-        $projects = $request->user()->projects()
+        $query = $request->user()->projects();
+
+        if ($request->filled('status') && in_array($request->input('status'), ['active', 'on-hold'])) {
+            $query->where('status', $request->input('status'));
+        }
+
+        $projects = $query
             ->withCount([
                 'tasks',
                 'tasks as todo_count'        => fn($q) => $q->where('status', 'todo'),
@@ -160,6 +166,13 @@ class ProjectController extends Controller
         $written = Storage::disk('public')->put($path, $imageData);
 
         return $written ? $path : null;
+    }
+
+    public function toggleStatus(Request $request, Project $project)
+    {
+        abort_if($project->user_id !== $request->user()->id, 403);
+        $project->update(['status' => $project->status === 'active' ? 'on-hold' : 'active']);
+        return back()->with('success', 'Project status updated.');
     }
 
     public function destroy(Request $request, Project $project)

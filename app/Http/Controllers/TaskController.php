@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Project;
 use App\Models\Task;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class TaskController extends Controller
@@ -88,6 +89,24 @@ class TaskController extends Controller
         }
 
         return response()->json($task);
+    }
+
+    public function reorder(Request $request, Project $project): JsonResponse
+    {
+        abort_if($project->user_id !== $request->user()->id, 403);
+
+        $validated = $request->validate([
+            'order'   => 'required|array',
+            'order.*' => 'integer',
+        ]);
+
+        foreach ($validated['order'] as $position => $taskId) {
+            Task::where('id', $taskId)
+                ->where('project_id', $project->id)
+                ->update(['order' => $position]);
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     public function destroy(Request $request, Task $task)

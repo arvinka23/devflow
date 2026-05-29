@@ -238,5 +238,30 @@ Alpine.data('aiAssistant', (projectId) => ({
     },
 }));
 
+// ── Project Time Report ──────────────────────────────────────────────────────
+Alpine.data('projectTimeReport', (projectId) => ({
+    loading: true,
+    error:   null,
+    data:    null,
+
+    async init() {
+        try {
+            const res  = await fetch(`/projects/${projectId}/time-report`, { headers: { 'Accept': 'application/json' } });
+            const json = await res.json();
+            if (json.error) { this.error = json.error; }
+            else            { this.data  = json; }
+        } catch { this.error = 'Could not load time report.'; }
+        this.loading = false;
+    },
+
+    formatSeconds(s) {
+        if (!s || s < 60) return (s || 0) + 's';
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        if (h > 0) return h + 'h' + (m > 0 ? ' ' + m + 'm' : '');
+        return m + 'm';
+    },
+}));
+
 Alpine.start();
 
