@@ -56,6 +56,7 @@
             $isCurrentMonth = $start->month === now()->month && $start->year === now()->year;
         @endphp
 
+        @php $colors = ['todo' => 'bg-slate-500', 'in_progress' => 'bg-amber-500', 'done' => 'bg-green-500']; @endphp
         <div class="grid grid-cols-7">
             {{-- leading empty cells --}}
             @for($i = 0; $i < $firstDow; $i++)
@@ -64,7 +65,6 @@
 
             @for($d = 1; $d <= $daysInMonth; $d++)
             @php
-                $col = ($firstDow + $d - 1) % 7;
                 $isToday = $isCurrentMonth && $d === $today;
                 $dayTasks = $tasks->get($d, collect());
             @endphp
@@ -73,19 +73,12 @@
                     <span class="text-sm font-medium {{ $isToday ? 'bg-primary text-primary-foreground w-6 h-6 rounded-full flex items-center justify-center text-xs' : 'text-muted-foreground' }}">{{ $d }}</span>
                 </div>
                 @foreach($dayTasks as $task)
-                @php
-                    $colors = ['todo' => 'bg-slate-500', 'in_progress' => 'bg-amber-500', 'done' => 'bg-green-500'];
-                @endphp
                 <div class="mb-1 px-2 py-0.5 rounded text-xs text-white truncate {{ $colors[$task->status] ?? 'bg-primary' }}"
                      title="{{ $task->title }}">
                     {{ $task->title }}
                 </div>
                 @endforeach
             </div>
-
-            {{-- end of row padding --}}
-            @if(($firstDow + $d) % 7 === 0 && $d < $daysInMonth)
-            @endif
             @endfor
 
             {{-- trailing empty cells --}}

@@ -24,7 +24,6 @@ class CalendarController extends Controller
         $tasks = $project->tasks()
             ->whereNotNull('due_date')
             ->whereBetween('due_date', [$start->toDateString(), $end->toDateString()])
-            ->with('labels')
             ->orderBy('due_date')
             ->get()
             ->groupBy(fn($t) => $t->due_date->day);

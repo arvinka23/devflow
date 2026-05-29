@@ -79,8 +79,10 @@ class ExportController extends Controller
                 'archived'    => (bool) $project->archived,
                 'exported_at' => now()->toIso8601String(),
             ],
-            // lazy() fetches in chunks so the full task graph is never held in
-            // memory at once — mirrors the same approach used in the CSV export.
+            // lazy() processes Eloquent models in chunks so the raw model graph
+            // is churned through rather than all instantiated at once. Note that
+            // ->values()->all() does materialise the final mapped array fully —
+            // the saving is in peak model memory, not total output memory.
             'tasks' => $project->tasks()
                 ->with(['labels', 'milestone', 'checklists', 'comments.user'])
                 ->orderBy('status')
