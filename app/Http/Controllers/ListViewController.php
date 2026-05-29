@@ -13,10 +13,10 @@ class ListViewController extends Controller
 
         $query = $project->tasks()->with(['labels', 'milestone', 'checklists']);
 
-        if ($request->filled('status')) {
+        if ($request->filled('status') && in_array($request->query('status'), ['todo', 'in_progress', 'done'])) {
             $query->where('status', $request->query('status'));
         }
-        if ($request->filled('priority')) {
+        if ($request->filled('priority') && in_array($request->query('priority'), ['low', 'medium', 'high'])) {
             $query->where('priority', $request->query('priority'));
         }
 
