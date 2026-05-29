@@ -71,11 +71,13 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-border">
-                    @foreach($tasks as $task)
                     @php
                         $statusColors = ['todo' => 'bg-slate-500/10 text-slate-500', 'in_progress' => 'bg-amber-500/10 text-amber-500', 'done' => 'bg-green-500/10 text-green-600'];
                         $priorityColors = ['low' => 'text-muted-foreground', 'medium' => 'text-amber-500', 'high' => 'text-red-500'];
                         $statusLabels = ['todo' => 'To Do', 'in_progress' => 'In Progress', 'done' => 'Done'];
+                    @endphp
+                    @foreach($tasks as $task)
+                    @php
                         $doneChecks = $task->checklists->where('completed', true)->count();
                         $totalChecks = $task->checklists->count();
                     @endphp
