@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Label;
 use App\Models\Task;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class LabelController extends Controller
 {
@@ -17,7 +18,10 @@ class LabelController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'  => 'required|string|max:50',
+            'name'  => [
+                'required', 'string', 'max:50',
+                Rule::unique('labels')->where('user_id', $request->user()->id),
+            ],
             'color' => ['required', 'string', 'regex:/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/'],
         ]);
 
