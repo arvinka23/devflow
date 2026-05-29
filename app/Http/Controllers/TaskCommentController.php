@@ -21,7 +21,15 @@ class TaskCommentController extends Controller
 
         $comment->load('user');
 
-        return response()->json($comment, 201);
+        return response()->json([
+            'id'         => $comment->id,
+            'body'       => $comment->body,
+            'created_at' => $comment->created_at,
+            'user'       => [
+                'id'   => $comment->user->id,
+                'name' => $comment->user->name,
+            ],
+        ], 201);
     }
 
     public function destroy(Request $request, Task $task, TaskComment $comment)

@@ -96,7 +96,7 @@
                         </td>
                         <td class="px-4 py-3 text-muted-foreground">
                             @if($task->due_date)
-                                @php $overdue = !$task->due_date->isFuture() && $task->status !== 'done'; @endphp
+                                @php $overdue = $task->due_date->lt(today()) && $task->status !== 'done'; @endphp
                                 <span class="{{ $overdue ? 'text-red-500 font-medium' : '' }}">{{ $task->due_date->format('M j, Y') }}</span>
                             @else
                                 <span class="text-muted-foreground/50">—</span>
