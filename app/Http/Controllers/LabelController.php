@@ -18,7 +18,7 @@ class LabelController extends Controller
     {
         $validated = $request->validate([
             'name'  => 'required|string|max:50',
-            'color' => 'required|string|max:20',
+            'color' => ['required', 'string', 'regex:/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/'],
         ]);
 
         $label = $request->user()->labels()->create($validated);

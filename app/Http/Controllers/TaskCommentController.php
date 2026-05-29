@@ -27,6 +27,7 @@ class TaskCommentController extends Controller
     public function destroy(Request $request, Task $task, TaskComment $comment)
     {
         abort_if($task->project->user_id !== $request->user()->id, 403);
+        abort_if($comment->task_id !== $task->id, 403);
         abort_if($comment->user_id !== $request->user()->id, 403);
 
         $comment->delete();
