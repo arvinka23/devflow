@@ -109,7 +109,7 @@
                         </button>
                     </form>
                     @else
-                    <form action="{{ route('projects.archive', $project->id) }}" method="POST">
+                    <form action="{{ route('projects.archive', $project->id) }}" method="POST" onsubmit="return confirm('Archive this project?')">
                         @csrf
                         <button type="submit" title="Archive project" class="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -45,8 +45,9 @@
 
     <!-- Milestones list -->
     @forelse($milestones as $milestone)
-    <div class="bg-card border border-border rounded-2xl p-6 space-y-3">
-        <div class="flex items-start justify-between gap-4">
+    <div class="bg-card border border-border rounded-2xl p-6 space-y-3" x-data="{ editing: false }">
+        {{-- View mode --}}
+        <div x-show="!editing" class="flex items-start justify-between gap-4">
             <div>
                 <h3 class="font-semibold text-foreground">{{ $milestone->title }}</h3>
                 @if($milestone->due_date)
@@ -58,6 +59,13 @@
             </div>
             <div class="flex items-center gap-2 shrink-0">
                 <span class="text-sm font-medium text-foreground">{{ $milestone->progress }}%</span>
+                {{-- Edit button --}}
+                <button @click="editing = true" class="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title="Edit milestone">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                </button>
+                {{-- Delete button --}}
                 <form method="POST" action="{{ route('milestones.destroy', [$project, $milestone]) }}">
                     @csrf @method('DELETE')
                     <button type="submit" class="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
@@ -68,6 +76,18 @@
                     </button>
                 </form>
             </div>
+        </div>
+        {{-- Edit mode --}}
+        <div x-show="editing" x-cloak>
+            <form method="POST" action="{{ route('milestones.update', [$project, $milestone]) }}" class="flex flex-col sm:flex-row gap-3">
+                @csrf @method('PUT')
+                <input type="text" name="title" value="{{ $milestone->title }}" required
+                       class="flex-1 px-3 py-2 rounded-lg bg-muted border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50">
+                <input type="date" name="due_date" value="{{ $milestone->due_date?->toDateString() }}"
+                       class="px-3 py-2 rounded-lg bg-muted border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50">
+                <button type="submit" class="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">Save</button>
+                <button type="button" @click="editing = false" class="px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm hover:bg-muted/80 transition-colors">Cancel</button>
+            </form>
         </div>
         <div class="h-2 bg-muted rounded-full overflow-hidden">
             <div class="h-full rounded-full transition-all duration-500 {{ $milestone->progress === 100 ? 'bg-green-500' : 'bg-primary' }}"
