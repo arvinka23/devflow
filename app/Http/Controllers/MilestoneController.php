@@ -47,7 +47,8 @@ class MilestoneController extends Controller
 
         $milestone->update($validated);
 
-        return response()->json($milestone);
+        return redirect()->route('milestones.index', $project)
+            ->with('success', 'Milestone updated.');
     }
 
     public function destroy(Request $request, Project $project, Milestone $milestone)

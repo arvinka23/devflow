@@ -70,12 +70,6 @@ class ExportController extends Controller
 
     private function buildExportData(Project $project): array
     {
-        $tasks = $project->tasks()
-            ->with(['labels', 'milestone', 'checklists', 'comments.user'])
-            ->orderBy('status')
-            ->orderBy('order')
-            ->get();
-
         return [
             'project' => [
                 'name'        => $project->name,
@@ -85,7 +79,14 @@ class ExportController extends Controller
                 'archived'    => (bool) $project->archived,
                 'exported_at' => now()->toIso8601String(),
             ],
-            'tasks' => $tasks->map(fn($task) => [
+            // lazy() fetches in chunks so the full task graph is never held in
+            // memory at once — mirrors the same approach used in the CSV export.
+            'tasks' => $project->tasks()
+                ->with(['labels', 'milestone', 'checklists', 'comments.user'])
+                ->orderBy('status')
+                ->orderBy('order')
+                ->lazy()
+                ->map(fn($task) => [
                 'title'       => $task->title,
                 'description' => $task->description,
                 'status'      => $task->status,
@@ -102,7 +103,7 @@ class ExportController extends Controller
                     'body' => $c->body,
                     'at'   => $c->created_at->toIso8601String(),
                 ]),
-            ]),
+            ])->values()->all(),
         ];
     }
 }

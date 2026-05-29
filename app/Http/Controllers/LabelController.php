@@ -37,7 +37,7 @@ class LabelController extends Controller
     {
         abort_if($task->project->user_id !== $request->user()->id, 403);
 
-        $validated = $request->validate(['label_id' => 'required|integer|exists:labels,id']);
+        $validated = $request->validate(['label_id' => 'required|integer']);
 
         $label = Label::findOrFail($validated['label_id']);
         abort_if($label->user_id !== $request->user()->id, 403);
