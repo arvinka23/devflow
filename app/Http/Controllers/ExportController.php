@@ -104,7 +104,7 @@ class ExportController extends Controller
      */
     private function csvSafe(string $value): string
     {
-        return preg_match('/^[=+\-@]/', $value) ? "'" . $value : $value;
+        return preg_match('/^[=+\-@]/', $value) ? "\t" . $value : $value;
     }
 
 }

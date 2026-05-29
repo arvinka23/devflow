@@ -41,7 +41,7 @@ class MilestoneController extends Controller
         abort_if($milestone->project_id !== $project->id, 403);
 
         $validated = $request->validate([
-            'title'    => 'sometimes|string|max:255',
+            'title'    => 'sometimes|string|min:1|max:255',
             'due_date' => 'sometimes|nullable|date',
         ]);
 
