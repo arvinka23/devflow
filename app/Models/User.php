@@ -42,6 +42,11 @@ class User extends Authenticatable
         return (bool) ($this->notification_preferences[$key] ?? $default);
     }
 
+    public function labels(): HasMany
+    {
+        return $this->hasMany(Label::class);
+    }
+
     public function getInitialsAttribute(): string
     {
         $words = explode(' ', trim($this->name));

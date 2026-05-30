@@ -1,13 +1,19 @@
 <?php
 
 use App\Http\Controllers\AiController;
+use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardLayoutController;
+use App\Http\Controllers\ExportController;
 use App\Http\Controllers\GitHubController;
+use App\Http\Controllers\LabelController;
+use App\Http\Controllers\ListViewController;
+use App\Http\Controllers\MilestoneController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskChecklistController;
+use App\Http\Controllers\TaskCommentController;
 use App\Http\Controllers\TimeEntryController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
@@ -25,11 +31,33 @@ Route::middleware('auth')->group(function () {
     Route::post('/projects/{project}/update', [ProjectController::class, 'update'])->name('projects.update');
     Route::post('/projects/{project}/toggle-status', [ProjectController::class, 'toggleStatus'])->name('projects.toggleStatus');
     Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])->name('projects.destroy');
+    Route::post('/projects/{project}/archive', [ProjectController::class, 'archive'])->name('projects.archive');
+    Route::post('/projects/{project}/unarchive', [ProjectController::class, 'unarchive'])->name('projects.unarchive');
+
+    Route::get('/projects/{project}/calendar', [CalendarController::class, 'show'])->name('projects.calendar');
+    Route::get('/projects/{project}/list', [ListViewController::class, 'show'])->name('projects.list');
+
+    Route::get('/projects/{project}/milestones', [MilestoneController::class, 'index'])->name('milestones.index');
+    Route::post('/projects/{project}/milestones', [MilestoneController::class, 'store'])->name('milestones.store');
+    Route::put('/projects/{project}/milestones/{milestone}', [MilestoneController::class, 'update'])->name('milestones.update');
+    Route::delete('/projects/{project}/milestones/{milestone}', [MilestoneController::class, 'destroy'])->name('milestones.destroy');
+
+    Route::get('/projects/{project}/export/json', [ExportController::class, 'json'])->name('export.json');
+    Route::get('/projects/{project}/export/csv', [ExportController::class, 'csv'])->name('export.csv');
 
     Route::post('/tasks', [TaskController::class, 'store'])->name('tasks.store');
     Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
     Route::post('/projects/{project}/tasks/reorder', [TaskController::class, 'reorder'])->name('tasks.reorder');
+
+    Route::post('/tasks/{task}/comments', [TaskCommentController::class, 'store'])->name('comments.store');
+    Route::delete('/tasks/{task}/comments/{comment}', [TaskCommentController::class, 'destroy'])->name('comments.destroy');
+
+    Route::get('/labels', [LabelController::class, 'index'])->name('labels.index');
+    Route::post('/labels', [LabelController::class, 'store'])->name('labels.store');
+    Route::delete('/labels/{label}', [LabelController::class, 'destroy'])->name('labels.destroy');
+    Route::post('/tasks/{task}/labels', [LabelController::class, 'attach'])->name('labels.attach');
+    Route::delete('/tasks/{task}/labels/{label}', [LabelController::class, 'detach'])->name('labels.detach');
 
     Route::post('/tasks/{task}/checklists', [TaskChecklistController::class, 'store'])->name('checklists.store');
     Route::put('/tasks/{task}/checklists/{checklist}', [TaskChecklistController::class, 'update'])->name('checklists.update');

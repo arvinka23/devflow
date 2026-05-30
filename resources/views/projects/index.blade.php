@@ -9,12 +9,25 @@
             <h1 class="text-2xl font-semibold text-foreground">Projects</h1>
             <p class="text-muted-foreground mt-1">Manage and track all your projects in one place.</p>
         </div>
-        <button onclick="openNewProjectModal()" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            New Project
-        </button>
+        <div class="flex items-center gap-2">
+            @if($archivedCount > 0 || $showArchived)
+            <a href="{{ $showArchived ? route('projects.index') : route('projects.index', ['archived' => 1]) }}"
+               class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-muted transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12h12l1-12"/>
+                </svg>
+                {{ $showArchived ? 'Active projects' : 'Archived (' . $archivedCount . ')' }}
+            </a>
+            @endif
+            @if(!$showArchived)
+            <button onclick="openNewProjectModal()" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                New Project
+            </button>
+            @endif
+        </div>
     </div>
 
     @if(session('success'))
@@ -85,6 +98,26 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                         </svg>
                     </button>
+                    <!-- Archive / Unarchive button -->
+                    @if($showArchived)
+                    <form action="{{ route('projects.unarchive', $project->id) }}" method="POST">
+                        @csrf
+                        <button type="submit" title="Restore project" class="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                        </button>
+                    </form>
+                    @else
+                    <form action="{{ route('projects.archive', $project->id) }}" method="POST" onsubmit="return confirm('Archive this project?')">
+                        @csrf
+                        <button type="submit" title="Archive project" class="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12h12l1-12"/>
+                            </svg>
+                        </button>
+                    </form>
+                    @endif
                     <!-- Delete button -->
                     <form action="{{ route('projects.destroy', $project->id) }}" method="POST" onsubmit="return confirm('Delete this project?')">
                         @csrf @method('DELETE')
