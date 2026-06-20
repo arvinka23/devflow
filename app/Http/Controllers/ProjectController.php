@@ -18,16 +18,16 @@ class ProjectController extends Controller
         $query = $request->user()->projects()
             ->where('archived', $showArchived);
 
-        if (!$showArchived && $request->filled('status') && in_array($request->input('status'), ['active', 'on-hold'])) {
+        if (! $showArchived && $request->filled('status') && in_array($request->input('status'), ['active', 'on-hold'])) {
             $query->where('status', $request->input('status'));
         }
 
         $projects = $query
             ->withCount([
                 'tasks',
-                'tasks as todo_count'        => fn($q) => $q->where('status', 'todo'),
-                'tasks as in_progress_count' => fn($q) => $q->where('status', 'in_progress'),
-                'tasks as done_count'        => fn($q) => $q->where('status', 'done'),
+                'tasks as todo_count' => fn ($q) => $q->where('status', 'todo'),
+                'tasks as in_progress_count' => fn ($q) => $q->where('status', 'in_progress'),
+                'tasks as done_count' => fn ($q) => $q->where('status', 'done'),
             ])
             ->addSelect([
                 'projects.*',
@@ -47,6 +47,7 @@ class ProjectController extends Controller
             ->get()
             ->map(function ($project) {
                 $project->progress = $project->progress;
+
                 return $project;
             });
 
@@ -58,17 +59,17 @@ class ProjectController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'        => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'color'       => 'nullable|string|max:20',
+            'color' => 'nullable|string|max:20',
         ]);
 
         $colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
 
         $data = [
-            'name'        => $validated['name'],
+            'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'color'       => !empty($validated['color']) ? $validated['color'] : $colors[array_rand($colors)],
+            'color' => ! empty($validated['color']) ? $validated['color'] : $colors[array_rand($colors)],
         ];
 
         if ($request->filled('picture_base64')) {
@@ -85,7 +86,7 @@ class ProjectController extends Controller
         ActivityLog::log(
             $request->user(),
             'project.created',
-            'created project "' . $project->name . '"',
+            'created project "'.$project->name.'"',
             $project
         );
 
@@ -96,10 +97,11 @@ class ProjectController extends Controller
     {
         abort_if($project->user_id !== $request->user()->id, 403);
 
+        $with = ['checklists', 'labels', 'comments.user'];
         $tasks = [
-            'todo'        => $project->tasks()->where('status', 'todo')->orderBy('order')->with('checklists')->get(),
-            'in_progress' => $project->tasks()->where('status', 'in_progress')->orderBy('order')->with('checklists')->get(),
-            'done'        => $project->tasks()->where('status', 'done')->orderBy('order')->with('checklists')->get(),
+            'todo' => $project->tasks()->where('status', 'todo')->orderBy('order')->with($with)->get(),
+            'in_progress' => $project->tasks()->where('status', 'in_progress')->orderBy('order')->with($with)->get(),
+            'done' => $project->tasks()->where('status', 'done')->orderBy('order')->with($with)->get(),
         ];
 
         return view('projects.show', compact('project', 'tasks'));
@@ -110,17 +112,17 @@ class ProjectController extends Controller
         abort_if($project->user_id !== $request->user()->id, 403);
 
         $validated = $request->validate([
-            'name'           => 'required|string|max:255',
-            'description'    => 'nullable|string|max:1000',
-            'color'          => 'nullable|string|max:20',
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'color' => 'nullable|string|max:20',
             'remove_picture' => 'nullable|boolean',
         ]);
 
         $data = [
-            'name'        => $validated['name'],
+            'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'color'       => !empty($validated['color']) ? $validated['color'] : $project->color,
-            'picture'     => $project->picture,
+            'color' => ! empty($validated['color']) ? $validated['color'] : $project->color,
+            'picture' => $project->picture,
         ];
 
         if ($request->filled('picture_base64')) {
@@ -149,7 +151,7 @@ class ProjectController extends Controller
 
     private function saveBase64Picture(string $base64): ?string
     {
-        if (!preg_match('/^data:image\/[a-z]+;base64,(.+)$/s', $base64, $matches)) {
+        if (! preg_match('/^data:image\/[a-z]+;base64,(.+)$/s', $base64, $matches)) {
             return null;
         }
 
@@ -160,14 +162,14 @@ class ProjectController extends Controller
         }
 
         // Verify actual content — never trust the client-supplied MIME prefix.
-        $mime       = (new \finfo(FILEINFO_MIME_TYPE))->buffer($imageData);
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($imageData);
         $extensions = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
 
-        if (!array_key_exists($mime, $extensions)) {
+        if (! array_key_exists($mime, $extensions)) {
             return null;
         }
 
-        $path    = 'projects/' . Str::uuid() . '.' . $extensions[$mime];
+        $path = 'projects/'.Str::uuid().'.'.$extensions[$mime];
         $written = Storage::disk('public')->put($path, $imageData);
 
         return $written ? $path : null;
@@ -177,6 +179,7 @@ class ProjectController extends Controller
     {
         abort_if($project->user_id !== $request->user()->id, 403);
         $project->update(['status' => $project->status === 'active' ? 'on-hold' : 'active']);
+
         return back()->with('success', 'Project status updated.');
     }
 
@@ -185,7 +188,7 @@ class ProjectController extends Controller
         abort_if($project->user_id !== $request->user()->id, 403);
         $project->update(['archived' => true]);
 
-        ActivityLog::log($request->user(), 'project.archived', 'archived project "' . $project->name . '"', $project);
+        ActivityLog::log($request->user(), 'project.archived', 'archived project "'.$project->name.'"', $project);
 
         return redirect()->route('projects.index')->with('success', 'Project archived.');
     }
@@ -195,7 +198,7 @@ class ProjectController extends Controller
         abort_if($project->user_id !== $request->user()->id, 403);
         $project->update(['archived' => false]);
 
-        ActivityLog::log($request->user(), 'project.unarchived', 'unarchived project "' . $project->name . '"', $project);
+        ActivityLog::log($request->user(), 'project.unarchived', 'unarchived project "'.$project->name.'"', $project);
 
         return redirect()->route('projects.index', ['archived' => 1])->with('success', 'Project restored.');
     }
@@ -207,7 +210,7 @@ class ProjectController extends Controller
         ActivityLog::log(
             $request->user(),
             'project.deleted',
-            'deleted project "' . $project->name . '"'
+            'deleted project "'.$project->name.'"'
         );
 
         if ($project->picture) {
@@ -215,6 +218,7 @@ class ProjectController extends Controller
         }
 
         $project->delete();
+
         return redirect()->route('projects.index');
     }
 }

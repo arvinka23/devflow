@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\Project;
+use App\Models\Task;
 use App\Models\TimeEntry;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -16,9 +17,9 @@ class DashboardController extends Controller
 
         $stats = [
             'total_projects' => $user->projects()->count(),
-            'open_tasks' => \App\Models\Task::whereHas('project', fn($q) => $q->where('user_id', $user->id))
+            'open_tasks' => Task::whereHas('project', fn ($q) => $q->where('user_id', $user->id))
                 ->whereIn('status', ['todo', 'in_progress'])->count(),
-            'completed_tasks' => \App\Models\Task::whereHas('project', fn($q) => $q->where('user_id', $user->id))
+            'completed_tasks' => Task::whereHas('project', fn ($q) => $q->where('user_id', $user->id))
                 ->where('status', 'done')->count(),
         ];
 
@@ -64,14 +65,22 @@ class DashboardController extends Controller
         for ($i = 6; $i >= 0; $i--) {
             $date = now()->subDays($i)->toDateString();
             $weeklyDays[] = [
-                'label'   => now()->subDays($i)->format('D'),
+                'label' => now()->subDays($i)->format('D'),
                 'seconds' => (int) ($weeklyTime[$date] ?? 0),
             ];
         }
         $maxSeconds = max(array_column($weeklyDays, 'seconds') ?: [1]);
 
+        $overdueTasks = Task::whereHas('project', fn ($q) => $q->where('user_id', $user->id))
+            ->where('due_date', '<', today())
+            ->whereIn('status', ['todo', 'in_progress'])
+            ->with('project:id,name,color')
+            ->orderBy('due_date')
+            ->take(10)
+            ->get();
+
         $layout = $user->dashboard_layout ?? User::getDefaultLayout();
 
-        return view('dashboard', compact('stats', 'recentProjects', 'activityFeed', 'activeProject', 'sprintTasks', 'weeklyDays', 'maxSeconds', 'layout'));
+        return view('dashboard', compact('stats', 'recentProjects', 'activityFeed', 'activeProject', 'sprintTasks', 'weeklyDays', 'maxSeconds', 'layout', 'overdueTasks'));
     }
 }
