@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class ExportController extends Controller
 {
@@ -11,42 +12,42 @@ class ExportController extends Controller
     {
         abort_if($project->user_id !== $request->user()->id, 403);
 
-        $filename = 'project-' . \Illuminate\Support\Str::slug($project->name) . '-' . now()->format('Ymd') . '.json';
+        $filename = 'project-'.Str::slug($project->name).'-'.now()->format('Ymd').'.json';
 
         $headers = [
-            'Content-Type'        => 'application/json; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Type' => 'application/json; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ];
 
         // Stream JSON incrementally using lazy() so tasks are fetched in chunks
         // and never fully materialised into a single PHP array.
         $projectMeta = [
-            'name'        => $project->name,
+            'name' => $project->name,
             'description' => $project->description,
-            'color'       => $project->color,
-            'status'      => $project->status,
-            'archived'    => (bool) $project->archived,
+            'color' => $project->color,
+            'status' => $project->status,
+            'archived' => (bool) $project->archived,
             'exported_at' => now()->toIso8601String(),
         ];
 
         $callback = function () use ($project, $projectMeta) {
-            echo '{"project":' . json_encode($projectMeta, JSON_UNESCAPED_UNICODE) . ',"tasks":[';
+            echo '{"project":'.json_encode($projectMeta, JSON_UNESCAPED_UNICODE).',"tasks":[';
 
             $first = true;
             foreach ($project->tasks()->with(['labels', 'milestone', 'checklists', 'comments.user'])->orderBy('status')->orderBy('order')->lazy() as $task) {
                 $row = [
-                    'title'       => $task->title,
+                    'title' => $task->title,
                     'description' => $task->description,
-                    'status'      => $task->status,
-                    'priority'    => $task->priority,
-                    'due_date'    => $task->due_date?->toDateString(),
-                    'milestone'   => $task->milestone?->title,
-                    'labels'      => $task->labels->pluck('name'),
-                    'checklists'  => $task->checklists->map(fn($c) => ['title' => $c->title, 'completed' => $c->completed]),
-                    'comments'    => $task->comments->map(fn($c) => ['user' => $c->user->name, 'body' => $c->body, 'at' => $c->created_at->toIso8601String()]),
+                    'status' => $task->status,
+                    'priority' => $task->priority,
+                    'due_date' => $task->due_date?->toDateString(),
+                    'milestone' => $task->milestone?->title,
+                    'labels' => $task->labels->pluck('name'),
+                    'checklists' => $task->checklists->map(fn ($c) => ['title' => $c->title, 'completed' => $c->completed]),
+                    'comments' => $task->comments->map(fn ($c) => ['user' => $c->user->name, 'body' => $c->body, 'at' => $c->created_at->toIso8601String()]),
                 ];
 
-                if (!$first) {
+                if (! $first) {
                     echo ',';
                 }
                 echo json_encode($row, JSON_UNESCAPED_UNICODE);
@@ -63,11 +64,11 @@ class ExportController extends Controller
     {
         abort_if($project->user_id !== $request->user()->id, 403);
 
-        $filename = 'project-' . \Illuminate\Support\Str::slug($project->name) . '-' . now()->format('Ymd') . '.csv';
+        $filename = 'project-'.Str::slug($project->name).'-'.now()->format('Ymd').'.csv';
 
         $headers = [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ];
 
         // Use lazy() so tasks are fetched in chunks inside the stream callback —
@@ -98,13 +99,49 @@ class ExportController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
+    public function ical(Request $request, Project $project)
+    {
+        abort_if($project->user_id !== $request->user()->id, 403);
+
+        $filename = 'project-'.Str::slug($project->name).'-'.now()->format('Ymd').'.ics';
+
+        $callback = function () use ($project) {
+            echo "BEGIN:VCALENDAR\r\n";
+            echo "VERSION:2.0\r\n";
+            echo "PRODID:-//DevFlow//EN\r\n";
+            echo "CALSCALE:GREGORIAN\r\n";
+            echo 'X-WR-CALNAME:'.$this->icalEscape($project->name)."\r\n";
+
+            $project->tasks()->whereNotNull('due_date')->orderBy('due_date')->lazy()->each(function ($task) {
+                echo "BEGIN:VEVENT\r\n";
+                echo "UID:task-{$task->id}@devflow\r\n";
+                echo 'DTSTART;VALUE=DATE:'.$task->due_date->format('Ymd')."\r\n";
+                echo 'SUMMARY:'.$this->icalEscape($task->title)."\r\n";
+                echo 'DESCRIPTION:'.$this->icalEscape(ucfirst($task->priority).' priority — '.str_replace('_', ' ', $task->status))."\r\n";
+                echo 'STATUS:'.($task->status === 'done' ? 'COMPLETED' : 'NEEDS-ACTION')."\r\n";
+                echo "END:VEVENT\r\n";
+            });
+
+            echo "END:VCALENDAR\r\n";
+        };
+
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'text/calendar; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
+    }
+
+    private function icalEscape(string $value): string
+    {
+        return str_replace(["\r\n", "\n", "\r", ',', ';', '\\'], [' ', ' ', ' ', '\\,', '\\;', '\\\\'], $value);
+    }
+
     /**
      * Prevent CSV formula injection by prefixing cells that start with
      * =, +, -, or @ with a single quote so spreadsheets treat them as text.
      */
     private function csvSafe(string $value): string
     {
-        return preg_match('/^[=+\-@]/', $value) ? "\t" . $value : $value;
+        return preg_match('/^[=+\-@]/', $value) ? "\t".$value : $value;
     }
-
 }

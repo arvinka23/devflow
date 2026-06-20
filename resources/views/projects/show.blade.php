@@ -18,18 +18,33 @@
                 @endif
             </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
             <!-- View switcher -->
             <div class="hidden sm:flex items-center gap-1 bg-muted rounded-xl p-1">
                 <span class="px-3 py-1.5 text-sm rounded-lg bg-card text-foreground font-medium shadow-sm">Kanban</span>
                 <a href="{{ route('projects.list', $project) }}" class="px-3 py-1.5 text-sm rounded-lg text-muted-foreground hover:text-foreground transition-colors">List</a>
                 <a href="{{ route('projects.calendar', $project) }}" class="px-3 py-1.5 text-sm rounded-lg text-muted-foreground hover:text-foreground transition-colors">Calendar</a>
             </div>
+            <!-- Export & Trash links -->
+            <div class="flex items-center gap-1">
+                <a href="{{ route('export.ical', $project) }}"
+                   class="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors" title="Export iCal">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                </a>
+                <a href="{{ route('projects.trash', $project) }}"
+                   class="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors" title="Trash">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                </a>
+            </div>
             <button onclick="openAddTaskModal('todo')" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                Add Task
+                Add Task <span class="hidden sm:inline text-xs opacity-70 font-normal ml-0.5">[N]</span>
             </button>
         </div>
     </div>
@@ -102,6 +117,48 @@
 
         <!-- Kanban Tab -->
         <div x-show="tab === 'kanban'">
+
+    <!-- Filter Bar -->
+    <div x-data="{
+            search: '',
+            priority: '',
+            overdueOnly: false,
+            today: '{{ now()->toDateString() }}',
+            applyFilter() {
+                document.querySelectorAll('.task-card').forEach(card => {
+                    const ms = !this.search   || card.dataset.title.toLowerCase().includes(this.search.toLowerCase());
+                    const mp = !this.priority || card.dataset.priority === this.priority;
+                    const mo = !this.overdueOnly || (card.dataset.dueDate && card.dataset.dueDate < this.today && card.dataset.dueDate !== '');
+                    card.style.display = (ms && mp && mo) ? '' : 'none';
+                });
+            }
+         }"
+         class="flex flex-wrap items-center gap-2 mb-4">
+        <div class="relative flex-1 min-w-[160px]">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <input x-model="search" @input="applyFilter()" type="text" placeholder="Search tasks…"
+                   class="w-full pl-9 pr-4 py-2 bg-muted border-0 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+        </div>
+        <select x-model="priority" @change="applyFilter()"
+                class="px-3 py-2 bg-muted border-0 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+            <option value="">All priorities</option>
+            <option value="high">↑ High</option>
+            <option value="medium">→ Medium</option>
+            <option value="low">↓ Low</option>
+        </select>
+        <label class="flex items-center gap-2 px-3 py-2 bg-muted rounded-xl text-sm text-foreground cursor-pointer select-none">
+            <input type="checkbox" x-model="overdueOnly" @change="applyFilter()" class="rounded">
+            Overdue only
+        </label>
+        <button x-show="search || priority || overdueOnly"
+                @click="search=''; priority=''; overdueOnly=false; applyFilter()"
+                class="px-3 py-2 bg-muted rounded-xl text-sm text-muted-foreground hover:text-foreground transition-colors">
+            Clear
+        </button>
+    </div>
+
     <!-- Kanban Board -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         @php
@@ -155,6 +212,7 @@
                      data-description="{{ e($task->description ?? '') }}"
                      data-priority="{{ $task->priority }}"
                      data-due-date="{{ $task->due_date?->format('Y-m-d') ?? '' }}"
+                     data-labels="{{ e($task->labels->pluck('name')->join(',')) }}"
                      onclick="openEditModal(this)">
                     <div class="flex items-start justify-between gap-2 mb-2">
                         <h4 class="font-medium text-foreground text-sm">{{ $task->title }}</h4>
@@ -384,11 +442,63 @@
                 </div>
             </div>
 
-            <!-- Time Tracking -->
-            <div id="timer-section"></div>
+            <!-- Time Tracking (persistent Alpine component driven by store) -->
+            <div x-data="timerWidget(null, null)" x-init="init()">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="text-sm font-medium text-foreground">Time Tracking</label>
+                    <span class="text-xs text-muted-foreground" x-show="!running && entries.length === 0">No time logged</span>
+                </div>
+                <div class="flex items-center gap-3 p-3 bg-muted/50 rounded-xl mb-3">
+                    <div class="font-mono text-lg font-semibold text-foreground min-w-[80px]" x-text="display">00:00</div>
+                    <div class="flex-1"></div>
+                    <button x-show="!running" @click="start()"
+                            class="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 text-green-500 rounded-lg text-xs font-medium hover:bg-green-500/20 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        Start
+                    </button>
+                    <button x-show="running" @click="stop()"
+                            class="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 text-red-500 rounded-lg text-xs font-medium hover:bg-red-500/20 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h4v12H6zm8 0h4v12h-4z"/></svg>
+                        Stop
+                    </button>
+                </div>
+                <template x-if="entries.length > 0">
+                    <div class="space-y-1.5">
+                        <template x-for="entry in entries.filter(e => !e.running)" :key="entry.id">
+                            <div class="flex items-center justify-between text-xs text-muted-foreground">
+                                <span x-text="new Date(entry.started_at).toLocaleDateString(undefined,{month:'short',day:'numeric'})"></span>
+                                <span class="font-mono font-medium text-foreground" x-text="entry.duration_human"></span>
+                                <button @click="deleteEntry(entry.id)" class="p-0.5 rounded hover:text-destructive transition-colors">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Comments -->
+            <div>
+                <label class="block text-sm font-medium text-foreground mb-3">Comments</label>
+                <div id="comment-items" class="space-y-2 mb-3"></div>
+                <div class="flex gap-2">
+                    <input type="text" id="new-comment-body" placeholder="Add a comment…"
+                           class="flex-1 px-4 py-2 bg-muted border-0 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                    <button onclick="addComment()" class="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shrink-0">
+                        Post
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <div class="flex justify-end gap-3 p-6 border-t border-border shrink-0">
+        <div class="flex items-center gap-3 p-6 border-t border-border shrink-0">
+            <button type="button" onclick="duplicateTask()" class="px-4 py-2.5 bg-muted text-foreground rounded-xl text-sm font-medium hover:bg-muted/80 transition-colors flex items-center gap-2">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                Duplicate
+            </button>
+            <div class="flex-1"></div>
             <button type="button" onclick="closeEditModal()" class="px-4 py-2.5 bg-muted text-foreground rounded-xl text-sm font-medium hover:bg-muted/80 transition-colors">
                 Cancel
             </button>
@@ -412,9 +522,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 let draggedTaskId   = null;
-let dragSourceCol   = null;   // column element where drag started
+let dragSourceCol   = null;
 let editingTaskId   = null;
-let currentChecklists = [];   // in-memory state for the open edit modal
+let currentChecklists = [];
 
 // ── Drag & Drop ─────────────────────────────────────────────────────────────
 
@@ -476,13 +586,20 @@ document.querySelectorAll('[id^="column-"]').forEach(col => {
                 body:    JSON.stringify({ order: ids }),
             });
         } else {
-            // ── Cross-column drop: update status then reload ──
+            // Move card first for instant visual feedback, revert on failure
+            const addBtn = col.querySelector('button[onclick^="openAddTaskModal"]');
+            col.insertBefore(draggedCard, addBtn);
+            const srcBadge = dragSourceCol.closest('.bg-muted\\/30')?.querySelector('span.px-2');
+            const dstBadge = col.closest('.bg-muted\\/30')?.querySelector('span.px-2');
+            if (srcBadge) srcBadge.textContent = dragSourceCol.querySelectorAll('.task-card').length;
+            if (dstBadge) dstBadge.textContent = col.querySelectorAll('.task-card').length;
+
             const res = await fetch(`/tasks/${draggedTaskId}`, {
                 method:  'PUT',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
                 body:    JSON.stringify({ status: newStatus }),
             });
-            if (res.ok) location.reload();
+            if (!res.ok) location.reload();
         }
     });
 });
@@ -514,56 +631,12 @@ function openEditModal(card) {
     document.getElementById('edit-due-date').value = card.dataset.dueDate;
 
     loadChecklists();
-    mountTimerWidget(editingTaskId);
+    loadComments();
+    Alpine.store('editModal').taskId = parseInt(editingTaskId);
 
     const modal = document.getElementById('edit-task-modal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
-}
-
-function mountTimerWidget(taskId) {
-    const section = document.getElementById('timer-section');
-    section.innerHTML = `
-        <div x-data="timerWidget(${taskId}, null)" x-init="init()" @destroy="destroy()">
-            <div class="flex items-center justify-between mb-2">
-                <label class="text-sm font-medium text-foreground">Time Tracking</label>
-                <span class="text-xs text-muted-foreground" x-show="!running && entries.length === 0">No time logged</span>
-            </div>
-
-            <!-- Timer display -->
-            <div class="flex items-center gap-3 p-3 bg-muted/50 rounded-xl mb-3">
-                <div class="font-mono text-lg font-semibold text-foreground min-w-[80px]" x-text="display">00:00</div>
-                <div class="flex-1"></div>
-                <button x-show="!running" @click="start()"
-                        class="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 text-green-500 rounded-lg text-xs font-medium hover:bg-green-500/20 transition-colors">
-                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                    Start
-                </button>
-                <button x-show="running" @click="stop()"
-                        class="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 text-red-500 rounded-lg text-xs font-medium hover:bg-red-500/20 transition-colors">
-                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h4v12H6zm8 0h4v12h-4z"/></svg>
-                    Stop
-                </button>
-            </div>
-
-            <!-- Past entries -->
-            <template x-if="entries.length > 0">
-                <div class="space-y-1.5">
-                    <template x-for="entry in entries.filter(e => !e.running)" :key="entry.id">
-                        <div class="flex items-center justify-between text-xs text-muted-foreground">
-                            <span x-text="new Date(entry.started_at).toLocaleDateString(undefined,{month:'short',day:'numeric'})"></span>
-                            <span class="font-mono font-medium text-foreground" x-text="entry.duration_human"></span>
-                            <button @click="deleteEntry(entry.id)" class="p-0.5 rounded hover:text-destructive transition-colors">
-                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                            </button>
-                        </div>
-                    </template>
-                </div>
-            </template>
-        </div>
-    `;
-    // Re-initialize Alpine on the new element
-    Alpine.initTree(section);
 }
 function closeEditModal() {
     const modal = document.getElementById('edit-task-modal');
@@ -575,17 +648,51 @@ document.getElementById('edit-task-modal').addEventListener('click', function(e)
     if (e.target === this) closeEditModal();
 });
 
+const PRIORITY_CLASSES = { high: 'bg-red-500/10 text-red-500', medium: 'bg-amber-500/10 text-amber-500', low: 'bg-green-500/10 text-green-500' };
+const PRIORITY_ICONS   = {
+    high:   '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/></svg>',
+    medium: '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14"/></svg>',
+    low:    '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>',
+};
+
 async function saveEditModal() {
+    const titleVal = document.getElementById('edit-title').value.trim();
+    if (!titleVal) return;
     const payload = {
-        title: document.getElementById('edit-title').value,
+        title:       titleVal,
         description: document.getElementById('edit-description').value,
-        priority: document.getElementById('edit-priority').value,
-        due_date: document.getElementById('edit-due-date').value || null,
+        priority:    document.getElementById('edit-priority').value,
+        due_date:    document.getElementById('edit-due-date').value || null,
     };
     const res = await fetch(`/tasks/${editingTaskId}`, {
-        method: 'PUT',
+        method:  'PUT',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
-        body: JSON.stringify(payload),
+        body:    JSON.stringify(payload),
+    });
+    if (!res.ok) return;
+    const task = await res.json();
+
+    const card = document.querySelector(`[data-task-id="${editingTaskId}"]`);
+    if (card) {
+        card.dataset.title       = task.title;
+        card.dataset.description = task.description ?? '';
+        card.dataset.priority    = task.priority;
+        card.dataset.dueDate     = task.due_date ?? '';
+        const titleEl = card.querySelector('h4');
+        if (titleEl) titleEl.textContent = task.title;
+        const badge = card.querySelector('.inline-flex.items-center.gap-1.px-2');
+        if (badge) {
+            badge.className = `inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full shrink-0 ${PRIORITY_CLASSES[task.priority]}`;
+            badge.innerHTML = PRIORITY_ICONS[task.priority] + ' ' + task.priority.charAt(0).toUpperCase() + task.priority.slice(1);
+        }
+    }
+    closeEditModal();
+}
+
+async function duplicateTask() {
+    const res = await fetch(`/tasks/${editingTaskId}/duplicate`, {
+        method:  'POST',
+        headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
     });
     if (res.ok) location.reload();
 }
@@ -593,7 +700,6 @@ async function saveEditModal() {
 // ── Checklist ────────────────────────────────────────────────────────────────
 
 function loadChecklists() {
-    // Read checklist data from the pre-rendered JSON blob embedded in the page.
     const raw = document.getElementById(`checklist-data-${editingTaskId}`);
     currentChecklists = raw ? JSON.parse(raw.textContent) : [];
     renderChecklists(currentChecklists);
@@ -631,8 +737,6 @@ async function addChecklistItem() {
         renderChecklists(currentChecklists);
         syncChecklistState();
         input.value = '';
-    } else {
-        alert('Failed to add item. Please try again.');
     }
 }
 
@@ -652,8 +756,6 @@ async function toggleChecklist(checklistId) {
         if (item) item.completed = data.completed;
         renderChecklists(currentChecklists);
         syncChecklistState();
-    } else {
-        alert('Failed to update item. Please try again.');
     }
 }
 
@@ -666,13 +768,9 @@ async function deleteChecklist(checklistId) {
         currentChecklists = currentChecklists.filter(c => c.id !== checklistId);
         renderChecklists(currentChecklists);
         syncChecklistState();
-    } else {
-        alert('Failed to delete item. Please try again.');
     }
 }
 
-// Keeps the in-page JSON blob and card badge in sync after checklist mutations,
-// so the modal state survives without a full page reload.
 function syncChecklistState() {
     const el = document.getElementById(`checklist-data-${editingTaskId}`);
     if (el) el.textContent = JSON.stringify(currentChecklists);
@@ -681,10 +779,9 @@ function syncChecklistState() {
 
 function updateCardBadge(taskId) {
     const badge = document.querySelector(`[data-checklist-badge="${taskId}"]`);
-    if (!badge) return;   // badge only exists if there were items on page load; reloads on nav
+    if (!badge) return;
     const total = currentChecklists.length;
     const done  = currentChecklists.filter(c => c.completed).length;
-    // Hide the badge entirely when all items have been deleted (matches the server-side conditional)
     badge.classList.toggle('hidden', total === 0);
     const countEl = badge.querySelector('[data-checklist-count]');
     if (countEl) countEl.textContent = `${done}/${total}`;
@@ -698,14 +795,141 @@ function updateCardBadge(taskId) {
 }
 
 function escHtml(str) {
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Keyboard Shortcuts ───────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+    if (e.key === 'n' || e.key === 'N') { e.preventDefault(); openAddTaskModal('todo'); }
+    if (e.key === 'Escape') { closeAddTaskModal(); closeEditModal(); closeShortcuts(); }
+    if (e.key === '?') toggleShortcuts();
+});
+function toggleShortcuts() {
+    const el = document.getElementById('shortcuts-overlay');
+    el.classList.toggle('hidden'); el.classList.toggle('flex');
+}
+function closeShortcuts() {
+    const el = document.getElementById('shortcuts-overlay');
+    el.classList.add('hidden'); el.classList.remove('flex');
+}
+
+// ── Comments ─────────────────────────────────────────────────────────────────
+let currentComments = [];
+
+function loadComments() {
+    const raw = document.getElementById(`comment-data-${editingTaskId}`);
+    currentComments = raw ? JSON.parse(raw.textContent) : [];
+    renderComments(currentComments);
+}
+function renderComments(items) {
+    const currentUserId = {{ auth()->id() }};
+    document.getElementById('comment-items').innerHTML = items.length === 0
+        ? '<p class="text-xs text-muted-foreground">No comments yet.</p>'
+        : items.map(c => `
+            <div class="group/c flex gap-2.5 p-2.5 bg-muted/40 rounded-xl" id="cmt-${c.id}">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-xs font-medium text-foreground">${escHtml(c.user_name)}</span>
+                        <span class="text-xs text-muted-foreground">${escHtml(c.created_at_human)}</span>
+                    </div>
+                    <p class="text-sm text-foreground whitespace-pre-wrap comment-body-${c.id}">${escHtml(c.body)}</p>
+                    <div class="hidden mt-2 comment-edit-${c.id}">
+                        <textarea class="w-full px-3 py-2 bg-muted border-0 rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none" rows="2">${escHtml(c.body)}</textarea>
+                        <div class="flex gap-2 mt-1.5">
+                            <button onclick="saveComment(${c.id})" class="px-3 py-1 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90">Save</button>
+                            <button onclick="cancelEditComment(${c.id})" class="px-3 py-1 bg-muted text-foreground rounded-lg text-xs font-medium hover:bg-muted/70">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+                ${c.user_id === currentUserId ? `
+                <div class="flex gap-1 opacity-0 group-hover/c:opacity-100 transition-opacity shrink-0">
+                    <button onclick="startEditComment(${c.id})" class="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </button>
+                    <button onclick="deleteComment(${c.id})" class="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>` : ''}
+            </div>
+        `).join('');
+}
+async function addComment() {
+    const input = document.getElementById('new-comment-body');
+    const body  = input.value.trim();
+    if (!body) return;
+    const res = await fetch(`/tasks/${editingTaskId}/comments`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+        body:    JSON.stringify({ body }),
+    });
+    if (res.ok) {
+        const data = await res.json();
+        currentComments.unshift({ id: data.id, body: data.body, user_id: data.user.id, user_name: data.user.name, created_at_human: 'just now' });
+        renderComments(currentComments);
+        input.value = '';
+    }
+}
+document.getElementById('new-comment-body').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addComment(); }
+});
+function startEditComment(id) {
+    document.querySelector(`.comment-body-${id}`)?.classList.add('hidden');
+    document.querySelector(`.comment-edit-${id}`)?.classList.remove('hidden');
+}
+function cancelEditComment(id) {
+    document.querySelector(`.comment-body-${id}`)?.classList.remove('hidden');
+    document.querySelector(`.comment-edit-${id}`)?.classList.add('hidden');
+}
+async function saveComment(id) {
+    const textarea = document.querySelector(`#cmt-${id} textarea`);
+    const body     = textarea?.value.trim();
+    if (!body) return;
+    const res = await fetch(`/tasks/${editingTaskId}/comments/${id}`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+        body:    JSON.stringify({ body }),
+    });
+    if (res.ok) {
+        const c = currentComments.find(c => c.id === id);
+        if (c) c.body = body;
+        renderComments(currentComments);
+    }
+}
+async function deleteComment(id) {
+    const res = await fetch(`/tasks/${editingTaskId}/comments/${id}`, {
+        method:  'DELETE',
+        headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+    });
+    if (res.ok) {
+        currentComments = currentComments.filter(c => c.id !== id);
+        renderComments(currentComments);
+    }
 }
 </script>
 
-{{-- Inline checklist data for each task. --}}
+<!-- Keyboard Shortcuts Overlay -->
+<div id="shortcuts-overlay" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4" onclick="closeShortcuts()">
+    <div class="bg-card rounded-2xl border border-border shadow-xl p-6 w-full max-w-xs" onclick="event.stopPropagation()">
+        <h2 class="text-base font-semibold text-foreground mb-4">Keyboard Shortcuts</h2>
+        <div class="space-y-2 text-sm">
+            @foreach([['N', 'New task'], ['Esc', 'Close modal'], ['?', 'Toggle shortcuts']] as [$key, $desc])
+            <div class="flex items-center justify-between">
+                <span class="text-muted-foreground">{{ $desc }}</span>
+                <kbd class="px-2 py-0.5 bg-muted rounded text-xs font-mono text-foreground border border-border">{{ $key }}</kbd>
+            </div>
+            @endforeach
+        </div>
+    </div>
+</div>
+
+{{-- Embedded task data blobs: checklist + comment state (avoids page reload after mutations). --}}
 @foreach(array_merge($tasks['todo']->all(), $tasks['in_progress']->all(), $tasks['done']->all()) as $task)
 <script type="application/json" id="checklist-data-{{ $task->id }}">
     {!! json_encode($task->checklists->map(fn($c) => ['id' => $c->id, 'title' => $c->title, 'completed' => $c->completed]), JSON_HEX_TAG | JSON_HEX_AMP) !!}
+</script>
+<script type="application/json" id="comment-data-{{ $task->id }}">
+    {!! json_encode($task->comments->map(fn($c) => ['id' => $c->id, 'body' => $c->body, 'user_id' => $c->user_id, 'user_name' => $c->user->name, 'created_at_human' => $c->created_at->diffForHumans()]), JSON_HEX_TAG | JSON_HEX_AMP) !!}
 </script>
 @endforeach
 

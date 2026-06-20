@@ -16,20 +16,32 @@ class TaskCommentController extends Controller
 
         $comment = $task->comments()->create([
             'user_id' => $request->user()->id,
-            'body'    => $validated['body'],
+            'body' => $validated['body'],
         ]);
 
         $comment->load('user');
 
         return response()->json([
-            'id'         => $comment->id,
-            'body'       => $comment->body,
+            'id' => $comment->id,
+            'body' => $comment->body,
             'created_at' => $comment->created_at,
-            'user'       => [
-                'id'   => $comment->user->id,
+            'user' => [
+                'id' => $comment->user->id,
                 'name' => $comment->user->name,
             ],
         ], 201);
+    }
+
+    public function update(Request $request, Task $task, TaskComment $comment)
+    {
+        abort_if($task->project->user_id !== $request->user()->id, 403);
+        abort_if($comment->task_id !== $task->id, 403);
+        abort_if($comment->user_id !== $request->user()->id, 403);
+
+        $validated = $request->validate(['body' => 'required|string|max:2000']);
+        $comment->update($validated);
+
+        return response()->json(['ok' => true, 'body' => $comment->body]);
     }
 
     public function destroy(Request $request, Task $task, TaskComment $comment)

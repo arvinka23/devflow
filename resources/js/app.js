@@ -3,6 +3,8 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
+Alpine.store('editModal', { taskId: null });
+
 Alpine.data('timerWidget', (taskId, initialEntry) => ({
     taskId,
     running: initialEntry ? initialEntry.running : false,
@@ -13,6 +15,28 @@ Alpine.data('timerWidget', (taskId, initialEntry) => ({
     loadingEntries: false,
 
     init() {
+        // If used as a persistent component driven by the store, watch for task changes.
+        if (taskId === null) {
+            this.$watch('$store.editModal.taskId', id => {
+                if (id) this.resetForTask(id);
+            });
+            return;
+        }
+        this._start();
+    },
+
+    resetForTask(newTaskId) {
+        clearInterval(this.intervalId);
+        this.intervalId = null;
+        this.taskId     = newTaskId;
+        this.running    = false;
+        this.startedAt  = null;
+        this.elapsed    = 0;
+        this.entries    = [];
+        this._start();
+    },
+
+    _start() {
         if (this.running && this.startedAt) {
             this.elapsed = Math.floor((Date.now() - this.startedAt.getTime()) / 1000);
             this.intervalId = setInterval(() => {

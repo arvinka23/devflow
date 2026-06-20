@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,16 +19,16 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password'          => 'hashed',
-            'github_token'             => 'encrypted',
-            'dashboard_layout'         => 'array',
+            'password' => 'hashed',
+            'github_token' => 'encrypted',
+            'dashboard_layout' => 'array',
             'notification_preferences' => 'array',
         ];
     }
 
     public static function getDefaultLayout(): array
     {
-        return ['stats', 'recent_projects', 'activity_feed', 'kanban_preview', 'time_tracking'];
+        return ['stats', 'recent_projects', 'overdue_tasks', 'activity_feed', 'kanban_preview', 'time_tracking'];
     }
 
     public function projects(): HasMany
@@ -52,6 +51,7 @@ class User extends Authenticatable
         $words = explode(' ', trim($this->name));
         $first = strtoupper(substr($words[0] ?? '', 0, 1));
         $second = strtoupper(substr($words[1] ?? '', 0, 1));
-        return $first . $second ?: '?';
+
+        return $first.$second ?: '?';
     }
 }

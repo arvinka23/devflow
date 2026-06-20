@@ -10,14 +10,15 @@ use App\Http\Controllers\LabelController;
 use App\Http\Controllers\ListViewController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\SearchController;
-use App\Http\Controllers\TaskController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TaskChecklistController;
 use App\Http\Controllers\TaskCommentController;
+use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TimeEntryController;
-use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\TrashController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn() => redirect()->route('dashboard'));
+Route::get('/', fn () => redirect()->route('dashboard'));
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -38,13 +39,21 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/projects/{project}/export/json', [ExportController::class, 'json'])->name('export.json');
     Route::get('/projects/{project}/export/csv', [ExportController::class, 'csv'])->name('export.csv');
+    Route::get('/projects/{project}/export/ical', [ExportController::class, 'ical'])->name('export.ical');
+
+    Route::get('/projects/{project}/trash', [TrashController::class, 'index'])->name('projects.trash');
 
     Route::post('/tasks', [TaskController::class, 'store'])->name('tasks.store');
     Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
+    Route::post('/tasks/{task}/duplicate', [TaskController::class, 'duplicate'])->name('tasks.duplicate');
     Route::post('/projects/{project}/tasks/reorder', [TaskController::class, 'reorder'])->name('tasks.reorder');
 
+    Route::post('/tasks/{task}/restore', [TrashController::class, 'restore'])->withTrashed()->name('tasks.restore');
+    Route::delete('/tasks/{task}/force', [TrashController::class, 'forceDelete'])->withTrashed()->name('tasks.forceDelete');
+
     Route::post('/tasks/{task}/comments', [TaskCommentController::class, 'store'])->name('comments.store');
+    Route::put('/tasks/{task}/comments/{comment}', [TaskCommentController::class, 'update'])->name('comments.update');
     Route::delete('/tasks/{task}/comments/{comment}', [TaskCommentController::class, 'destroy'])->name('comments.destroy');
 
     Route::get('/labels', [LabelController::class, 'index'])->name('labels.index');
