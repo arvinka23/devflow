@@ -28,11 +28,6 @@ class Project extends Model
         return $this->hasMany(ActivityLog::class);
     }
 
-    public function milestones(): HasMany
-    {
-        return $this->hasMany(Milestone::class);
-    }
-
     public function getProgressAttribute(): int
     {
         $total = $this->tasks()->count();

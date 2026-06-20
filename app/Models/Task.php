@@ -12,7 +12,7 @@ class Task extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['project_id', 'milestone_id', 'title', 'description', 'status', 'priority', 'order', 'due_date'];
+    protected $fillable = ['project_id', 'title', 'description', 'status', 'priority', 'order', 'due_date'];
 
     protected $casts = ['due_date' => 'date'];
 
@@ -39,10 +39,5 @@ class Task extends Model
     public function labels(): BelongsToMany
     {
         return $this->belongsToMany(Label::class);
-    }
-
-    public function milestone(): BelongsTo
-    {
-        return $this->belongsTo(Milestone::class);
     }
 }

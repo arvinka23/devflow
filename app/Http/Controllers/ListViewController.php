@@ -11,7 +11,7 @@ class ListViewController extends Controller
     {
         abort_if($project->user_id !== $request->user()->id, 403);
 
-        $query = $project->tasks()->with(['labels', 'milestone', 'checklists']);
+        $query = $project->tasks()->with(['labels', 'checklists']);
 
         if ($request->filled('status') && in_array($request->query('status'), ['todo', 'in_progress', 'done'])) {
             $query->where('status', $request->query('status'));

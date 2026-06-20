@@ -8,7 +8,6 @@ use App\Http\Controllers\ExportController;
 use App\Http\Controllers\GitHubController;
 use App\Http\Controllers\LabelController;
 use App\Http\Controllers\ListViewController;
-use App\Http\Controllers\MilestoneController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TaskController;
@@ -36,11 +35,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/projects/{project}/calendar', [CalendarController::class, 'show'])->name('projects.calendar');
     Route::get('/projects/{project}/list', [ListViewController::class, 'show'])->name('projects.list');
-
-    Route::get('/projects/{project}/milestones', [MilestoneController::class, 'index'])->name('milestones.index');
-    Route::post('/projects/{project}/milestones', [MilestoneController::class, 'store'])->name('milestones.store');
-    Route::put('/projects/{project}/milestones/{milestone}', [MilestoneController::class, 'update'])->name('milestones.update');
-    Route::delete('/projects/{project}/milestones/{milestone}', [MilestoneController::class, 'destroy'])->name('milestones.destroy');
 
     Route::get('/projects/{project}/export/json', [ExportController::class, 'json'])->name('export.json');
     Route::get('/projects/{project}/export/csv', [ExportController::class, 'csv'])->name('export.csv');
@@ -72,8 +66,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/ai/suggest-tasks', [AiController::class, 'suggestTasks'])->name('ai.suggest');
     Route::post('/ai/chat', [AiController::class, 'chat'])->name('ai.chat');
 
+    Route::get('/github', [GitHubController::class, 'index'])->name('github.index');
     Route::get('/github/repos', [GitHubController::class, 'repos'])->name('github.repos');
-    Route::get('/projects/{project}/github', [GitHubController::class, 'show'])->name('github.show');
     Route::post('/projects/{project}/github/link', [GitHubController::class, 'link'])->name('github.link');
     Route::post('/projects/{project}/github/unlink', [GitHubController::class, 'unlink'])->name('github.unlink');
 

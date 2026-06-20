@@ -65,7 +65,6 @@
                         <th class="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
                         <th class="text-left px-4 py-3 font-medium text-muted-foreground">Priority</th>
                         <th class="text-left px-4 py-3 font-medium text-muted-foreground">Due Date</th>
-                        <th class="text-left px-4 py-3 font-medium text-muted-foreground">Milestone</th>
                         <th class="text-left px-4 py-3 font-medium text-muted-foreground">Labels</th>
                         <th class="text-left px-4 py-3 font-medium text-muted-foreground">Checklist</th>
                     </tr>
@@ -104,7 +103,6 @@
                                 <span class="text-muted-foreground/50">—</span>
                             @endif
                         </td>
-                        <td class="px-4 py-3 text-muted-foreground text-xs">{{ $task->milestone?->title ?? '—' }}</td>
                         <td class="px-4 py-3">
                             <div class="flex flex-wrap gap-1">
                                 @foreach($task->labels as $label)
