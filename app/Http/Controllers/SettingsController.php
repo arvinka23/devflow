@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
@@ -23,7 +24,7 @@ class SettingsController extends Controller
         // of other fillable fields (e.g. email) if validation rules expand later.
         $request->user()->update(['name' => $validated['name']]);
 
-        return redirect()->route('settings')->with('success', 'Settings saved.');
+        return to_route('settings')->with('success', 'Settings saved.');
     }
 
     public function updateAvatar(Request $request)
@@ -46,7 +47,7 @@ class SettingsController extends Controller
         $user->profile_picture = $path;
         $user->save();
 
-        return redirect()->route('settings')->with('success', 'Profile picture updated.');
+        return to_route('settings')->with('success', 'Profile picture updated.');
     }
 
     private function saveBase64Avatar(string $base64): ?string
@@ -84,7 +85,7 @@ class SettingsController extends Controller
             $user->update(['profile_picture' => null]);
         }
 
-        return redirect()->route('settings')->with('success', 'Profile picture removed.');
+        return to_route('settings')->with('success', 'Profile picture removed.');
     }
 
     public function updateGithubToken(Request $request)
@@ -97,7 +98,7 @@ class SettingsController extends Controller
 
         // Reject if the user accidentally submitted placeholder bullet characters
         if ($token && preg_match('/^[•\*]+$/', $token)) {
-            return redirect()->route('settings')->withErrors(['github_token' => 'Please paste your actual GitHub token, not the placeholder.']);
+            return to_route('settings')->withErrors(['github_token' => 'Please paste your actual GitHub token, not the placeholder.']);
         }
 
         $request->user()->update(['github_token' => $token ?: null]);
@@ -105,7 +106,7 @@ class SettingsController extends Controller
         // Flush the cached repo list so the picker immediately reflects the new token.
         Cache::forget('github.repos.' . $request->user()->id);
 
-        return redirect()->route('settings')->with('success', 'GitHub token saved.');
+        return to_route('settings')->with('success', 'GitHub token saved.');
     }
 
     public function updateNotifications(Request $request)
@@ -118,7 +119,7 @@ class SettingsController extends Controller
         ];
 
         $request->user()->update(['notification_preferences' => $prefs]);
-        return redirect()->route('settings')->with('success', 'Notification preferences saved.');
+        return to_route('settings')->with('success', 'Notification preferences saved.');
     }
 
     public function deleteAccount(Request $request)
@@ -129,11 +130,10 @@ class SettingsController extends Controller
             Storage::disk('public')->delete($user->profile_picture);
         }
 
-        // Delete first — if this fails, the user stays logged in and can retry.
-        $user->delete();
-        auth()->logout();
+        Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+        $user->delete();
         return redirect('/');
     }
 }

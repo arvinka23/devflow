@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -11,6 +12,34 @@ use Throwable;
 
 class GitHubController extends Controller
 {
+    public function index(Request $request): View
+    {
+        $user = $request->user();
+
+        if (! $user->github_token) {
+            return view('github.index', ['projects' => collect(), 'hasToken' => false]);
+        }
+
+        $projects = $user->projects()
+            ->orderBy('name')
+            ->get()
+            ->map(function (Project $project) use ($user) {
+                $prCount = null;
+                if ($project->github_repo) {
+                    try {
+                        $data    = $this->fetchGithubData($project, $user->github_token);
+                        $prCount = count($data['prs'] ?? []);
+                    } catch (Throwable) {
+                        // leave as null on API failure
+                    }
+                }
+
+                return ['project' => $project, 'pr_count' => $prCount];
+            });
+
+        return view('github.index', ['projects' => $projects, 'hasToken' => true]);
+    }
+
     public function repos(Request $request): JsonResponse
     {
         $token = $request->user()->github_token;
@@ -48,51 +77,6 @@ class GitHubController extends Controller
         }
     }
 
-    public function show(Request $request, Project $project): JsonResponse
-    {
-        abort_if($project->user_id !== $request->user()->id, 403);
-
-        if (!$project->github_repo) {
-            return response()->json(['error' => 'No GitHub repo linked.'], 404);
-        }
-
-        $token = $request->user()->github_token;
-        if (!$token) {
-            return response()->json(['error' => 'No GitHub token configured.'], 422);
-        }
-
-        try {
-            $data = Cache::remember("github.{$project->id}", 300, function () use ($project, $token) {
-                $repo    = $project->github_repo;
-                $headers = ['Accept' => 'application/vnd.github+json', 'X-GitHub-Api-Version' => '2022-11-28'];
-                $http    = Http::withToken($token)->withHeaders($headers);
-
-                $prsRes      = $http->get("https://api.github.com/repos/{$repo}/pulls", ['state' => 'open', 'per_page' => 10]);
-                $branchesRes = $http->get("https://api.github.com/repos/{$repo}/branches", ['per_page' => 10]);
-
-                $prs = $prsRes->successful()
-                    ? collect($prsRes->json())->map(fn($pr) => [
-                        'number' => $pr['number'],
-                        'title'  => $pr['title'],
-                        'author' => $pr['user']['login'] ?? '',
-                        'url'    => $pr['html_url'],
-                        'state'  => $pr['state'],
-                    ])->all()
-                    : [];
-
-                $branches = $branchesRes->successful()
-                    ? collect($branchesRes->json())->map(fn($b) => $b['name'])->all()
-                    : [];
-
-                return compact('prs', 'branches');
-            });
-
-            return response()->json($data);
-        } catch (Throwable $e) {
-            return response()->json(['error' => 'Failed to fetch GitHub data.'], 503);
-        }
-    }
-
     public function link(Request $request, Project $project): JsonResponse
     {
         abort_if($project->user_id !== $request->user()->id, 403);
@@ -115,5 +99,32 @@ class GitHubController extends Controller
         Cache::forget("github.{$project->id}");
 
         return response()->json(['ok' => true]);
+    }
+
+    private function fetchGithubData(Project $project, string $token): array
+    {
+        return Cache::remember("github.{$project->id}", 300, function () use ($project, $token) {
+            $headers = ['Accept' => 'application/vnd.github+json', 'X-GitHub-Api-Version' => '2022-11-28'];
+            $http    = Http::withToken($token)->withHeaders($headers);
+
+            $prsRes      = $http->get("https://api.github.com/repos/{$project->github_repo}/pulls", ['state' => 'open', 'per_page' => 10]);
+            $branchesRes = $http->get("https://api.github.com/repos/{$project->github_repo}/branches", ['per_page' => 10]);
+
+            $prs = $prsRes->successful()
+                ? collect($prsRes->json())->map(fn($pr) => [
+                    'number' => $pr['number'],
+                    'title'  => $pr['title'],
+                    'author' => $pr['user']['login'] ?? '',
+                    'url'    => $pr['html_url'],
+                    'state'  => $pr['state'],
+                ])->all()
+                : [];
+
+            $branches = $branchesRes->successful()
+                ? collect($branchesRes->json())->map(fn($b) => $b['name'])->all()
+                : [];
+
+            return compact('prs', 'branches');
+        });
     }
 }

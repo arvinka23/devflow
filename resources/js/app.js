@@ -92,79 +92,54 @@ Alpine.data('timerWidget', (taskId, initialEntry) => ({
     },
 }));
 
-// ── GitHub Widget ────────────────────────────────────────────────────────────
-Alpine.data('githubWidget', (projectId, initialRepo) => ({
+// ── GitHub Row (overview page link/unlink) ───────────────────────────────────
+Alpine.data('githubRow', (projectId) => ({
     projectId,
-    repo:         initialRepo || null,
-    hasToken:     true,
-    allRepos:     [],
-    search:       '',
-    loadingRepos: false,
-    repoError:    null,
-    prs:          [],
-    branches:     [],
-    loading:      false,
-    error:        null,
+    open:    false,
+    repos:   [],
+    loading: false,
+    search:  '',
+    error:   null,
 
-    get filteredRepos() {
-        if (!this.search.trim()) return this.allRepos;
+    get filtered() {
+        if (!this.search.trim()) return this.repos;
         const q = this.search.toLowerCase();
-        return this.allRepos.filter(r =>
+        return this.repos.filter(r =>
             r.full_name.toLowerCase().includes(q) ||
             (r.description && r.description.toLowerCase().includes(q))
         );
     },
 
-    init() {
-        if (this.repo) { this.fetchData(); } else { this.fetchRepos(); }
-    },
-
-    async fetchRepos() {
-        this.loadingRepos = true;
-        this.repoError    = null;
+    async openPicker() {
+        this.open    = true;
+        this.loading = true;
+        this.error   = null;
         try {
             const res  = await fetch('/github/repos', { headers: { 'Accept': 'application/json' } });
             const data = await res.json();
-            if (data.error) {
-                if (data.error.includes('token')) this.hasToken = false;
-                this.repoError = data.error;
-            } else {
-                this.allRepos = data.repos ?? [];
-            }
-        } catch { this.repoError = 'Could not load repositories.'; }
-        finally  { this.loadingRepos = false; }
-    },
-
-    async fetchData() {
-        this.loading = true; this.error = null;
-        try {
-            const res  = await fetch(`/projects/${this.projectId}/github`, { headers: { 'Accept': 'application/json' } });
-            const data = await res.json();
             if (data.error) { this.error = data.error; }
-            else { this.prs = data.prs ?? []; this.branches = data.branches ?? []; }
-        } catch { this.error = 'Failed to load GitHub data.'; }
+            else             { this.repos = data.repos ?? []; }
+        } catch { this.error = 'Could not load repositories.'; }
         finally  { this.loading = false; }
     },
 
-    async linkRepo(fullName) {
+    async link(fullName) {
         const csrf = document.querySelector('meta[name="csrf-token"]').content;
         const res  = await fetch(`/projects/${this.projectId}/github/link`, {
-            method: 'POST',
+            method:  'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
-            body:   JSON.stringify({ github_repo: fullName }),
+            body:    JSON.stringify({ github_repo: fullName }),
         });
-        const data = await res.json();
-        if (data.ok) { this.repo = data.github_repo; this.allRepos = []; this.search = ''; this.fetchData(); }
-        else { this.repoError = data.message ?? 'Could not link repo.'; }
+        if ((await res.json()).ok) location.reload();
     },
 
-    async unlinkRepo() {
+    async unlink() {
         if (!confirm('Unlink this GitHub repository?')) return;
         const csrf = document.querySelector('meta[name="csrf-token"]').content;
         await fetch(`/projects/${this.projectId}/github/unlink`, {
             method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
         });
-        this.repo = null; this.prs = []; this.branches = []; this.fetchRepos();
+        location.reload();
     },
 }));
 
